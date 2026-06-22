@@ -9,8 +9,11 @@ export const isSupabaseConfigured = (): boolean => {
   return (
     supabaseUrl !== '' &&
     supabaseUrl !== 'your-supabase-url' &&
+    !supabaseUrl.includes('AQUÍ_PEGA') &&
+    (supabaseUrl.startsWith('http://') || supabaseUrl.startsWith('https://')) &&
     supabaseAnonKey !== '' &&
-    supabaseAnonKey !== 'your-anon-key'
+    supabaseAnonKey !== 'your-anon-key' &&
+    !supabaseAnonKey.includes('AQUÍ_PEGA')
   );
 };
 
