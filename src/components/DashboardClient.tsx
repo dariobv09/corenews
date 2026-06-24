@@ -97,12 +97,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
     } catch { /* silent */ }
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'Nunca';
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-    });
-  };
+
 
   const filteredNoticias = noticias.filter(n => n.categoria === activeTab);
   const activeInforme    = informes[activeTab];
@@ -154,18 +149,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
               </div>
             </div>
 
-            {/* Acciones */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Badge última actualización */}
-              <span style={{
-                fontSize: 11, padding: '4px 10px', borderRadius: 20,
-                background: 'var(--bg-subtle)', color: 'var(--text-muted)',
-                border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 5
-              }}>
-                <Clock style={{ width: 11, height: 11 }} />
-                {formatDate(lastUpdated)}
-              </span>
-            </div>
+
           </div>
         </div>
       </header>
