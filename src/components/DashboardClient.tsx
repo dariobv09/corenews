@@ -133,7 +133,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <img
                 src="/icon.jpg"
-                alt="corenews logo"
+                alt="The Core News logo"
                 style={{
                   width: 34, height: 34, borderRadius: 8,
                   objectFit: 'cover', border: '1px solid var(--border)'
@@ -141,7 +141,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
               />
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, letterSpacing: '-0.02em', textTransform: 'lowercase' }}>
-                  corenews
+                  the core news
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-faint)', letterSpacing: '0.05em' }}>
                   ANÁLISIS MULTIAGENTE

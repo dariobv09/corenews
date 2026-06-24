@@ -1,6 +1,6 @@
 {
-  "name": "corenews",
-  "short_name": "corenews",
+  "name": "The Core News",
+  "short_name": "The Core News",
   "description": "Inteligencia de Noticias Verificadas",
   "start_url": "/",
   "display": "standalone",

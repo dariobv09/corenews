@@ -177,8 +177,101 @@ La firma del Tratado Anglo-Nórdico de Infraestructuras establece un marco de co
 
 * **Comando conjunto:** El ISCC en Stavanger asume funciones de monitorización 24/7 con capacidad de coordinar respuestas operativas ante incidentes bajo criterios de gravedad unificados.
 * **Incidentes documentados:** El tratado responde a la rotura de dos cables de fibra en enero de 2025 y a la detección de drones industriales submarinos en las inmediaciones del Baltic Connector en marzo de 2025.
-* **Atribución de amenazas:** El acuerdo asume el término legal de "actores estatales con intenciones adversas" para enfocar las contramedidas ante operaciones de guerra híbrida submarina.
-* **Ampliación de la alianza:** Países Bajos, Dinamarca e Islandia mantienen conversaciones para incorporarse a esta arquitectura de seguridad regional.
-* **Tecnología de vigilancia:** La monitorización marítima incorpora sistemas automatizados de detección acústica y algoritmos de seguimiento de naves AIS para alertar de anomalías.', now());es y locales emergen para atender puntos de tensión específicos que exceden la velocidad de respuesta de foros multilaterales.
-
 *Perspectiva editorial: El Mar del Norte se convierte en un corredor crítico blindado, reflejando la fragmentación de la defensa global en bloques especializados.*', now());
+
+-- =========================================================================
+-- FUNCTION: guardar_datos_categoria
+-- Transactionally saves the daily report and news with sources for a category
+-- =========================================================================
+CREATE OR REPLACE FUNCTION guardar_datos_categoria(
+    p_categoria TEXT,
+    p_informe_contenido TEXT,
+    p_noticias JSONB
+) RETURNS VOID AS $$
+DECLARE
+    v_noticia JSONB;
+    v_noticia_id UUID;
+    v_fuente JSONB;
+    v_sorted_ids UUID[];
+BEGIN
+    -- 1. Borrar informes previos de la categoría
+    DELETE FROM informes WHERE categoria = p_categoria;
+    
+    -- 2. Insertar el nuevo informe
+    INSERT INTO informes (categoria, contenido)
+    VALUES (p_categoria, p_informe_contenido);
+    
+    -- 3. Insertar noticias y fuentes
+    FOR v_noticia IN SELECT * FROM jsonb_array_elements(p_noticias) LOOP
+        -- Insertar noticia
+        INSERT INTO noticias (
+            categoria, 
+            importancia, 
+            titulo, 
+            subtitulo, 
+            hecho_principal, 
+            desarrollo, 
+            actores, 
+            contexto, 
+            datos_verificables, 
+            estado_actual, 
+            declaraciones, 
+            consecuencias
+        ) VALUES (
+            p_categoria, 
+            (v_noticia->>'importancia')::TEXT, 
+            (v_noticia->>'titulo')::TEXT, 
+            (v_noticia->>'subtitulo')::TEXT, 
+            (v_noticia->>'hecho_principal')::TEXT,
+            (v_noticia->>'desarrollo')::TEXT, 
+            (v_noticia->>'actores')::TEXT, 
+            (v_noticia->>'contexto')::TEXT, 
+            (v_noticia->>'datos_verificables')::TEXT,
+            (v_noticia->>'estado_actual')::TEXT, 
+            (v_noticia->>'declaraciones')::TEXT, 
+            (v_noticia->>'consecuencias')::TEXT
+        ) RETURNING id INTO v_noticia_id;
+        
+        -- Insertar fuentes si las hay
+        IF v_noticia ? 'fuentes' AND jsonb_array_length(v_noticia->'fuentes') > 0 THEN
+            FOR v_fuente IN SELECT * FROM jsonb_array_elements(v_noticia->'fuentes') LOOP
+                INSERT INTO fuentes (
+                    noticia_id, 
+                    nombre, 
+                    tipo, 
+                    url, 
+                    relevancia, 
+                    fecha_publicacion
+                ) VALUES (
+                    v_noticia_id,
+                    (v_fuente->>'nombre')::TEXT,
+                    (v_fuente->>'tipo')::TEXT,
+                    (v_fuente->>'url')::TEXT,
+                    (v_fuente->>'relevancia')::TEXT,
+                    (v_fuente->>'fecha_publicacion')::TEXT
+                );
+            END LOOP;
+        END IF;
+    END LOOP;
+    
+    -- 4. Limitar a las 5 noticias más importantes/recientes y borrar el resto
+    SELECT array_agg(id) INTO v_sorted_ids FROM (
+        SELECT id FROM noticias
+        WHERE categoria = p_categoria
+        ORDER BY 
+            CASE importancia 
+                WHEN 'Alta' THEN 3
+                WHEN 'Media' THEN 2
+                WHEN 'Baja' THEN 1
+                ELSE 0
+            END DESC,
+            fecha_actualizacion DESC
+        LIMIT 5
+    ) AS sub;
+    
+    DELETE FROM noticias 
+    WHERE categoria = p_categoria 
+      AND NOT (id = ANY(v_sorted_ids));
+      
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

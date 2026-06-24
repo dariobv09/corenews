@@ -68,26 +68,32 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
     return { success: false, error: 'La actualización ya está en curso.' };
   }
 
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd && !isSupabaseConfigured()) {
+    addAgentLog('Coordinador', '❌ Error crítico: Supabase no está configurado en el entorno de producción. Se cancela el pipeline para evitar pérdida de datos.', 'error');
+    return { success: false, error: 'Supabase no está configurado en el entorno de producción.' };
+  }
+
   globalLogs.isUpdating = true;
   clearAgentLogs();
-  addAgentLog('Coordinador', 'Iniciando ciclo completo de investigación y verificación multiagente...', 'info');
+  addAgentLog('Coordinador', 'Iniciando ciclo completo de investigación y verificación multiagente en paralelo...', 'info');
 
   const categories: Categoria[] = ['ia', 'tecnologia', 'economia', 'politica'];
   const dbType = isSupabaseConfigured() ? 'Supabase' : 'Almacenamiento Local (Fallback)';
   addAgentLog('Sistema', `Destino de base de datos detectado: ${dbType}`, 'info');
 
   try {
-    for (const cat of categories) {
+    const promises = categories.map(async (cat) => {
       addAgentLog('Coordinador', `--- PROCESANDO CATEGORÍA: ${cat.toUpperCase()} ---`, 'info');
 
       // Step 1: Gather info
       const feedItems = await searchCategoryNews(cat, (msg) => {
-        addAgentLog('Buscador', msg, 'info');
+        addAgentLog('Buscador', `[${cat.toUpperCase()}] ${msg}`, 'info');
       });
 
       if (feedItems.length === 0) {
         addAgentLog('Coordinador', `⚠ No se encontraron noticias ni semillas para la categoría ${cat}. Omitiendo.`, 'warning');
-        continue;
+        return;
       }
 
       // Step 2: Specialists analyze & draft
@@ -97,105 +103,47 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
       else if (cat === 'politica') agentName = 'Agente Politica';
 
       const draftEvents = await runSpecialistAgent(cat, feedItems, (msg) => {
-        addAgentLog(agentName, msg, 'info');
+        addAgentLog(agentName, `[${cat.toUpperCase()}] ${msg}`, 'info');
       });
 
       if (draftEvents.length === 0) {
         addAgentLog('Coordinador', `⚠ El especialista no generó borradores para ${cat}. Omitiendo.`, 'warning');
-        continue;
+        return;
       }
 
       // Step 3: Verifier checks drafts
       const verifications = await runVerifierAgent(cat, draftEvents, (msg) => {
-        addAgentLog('Verificador', msg, 'info');
+        addAgentLog('Verificador', `[${cat.toUpperCase()}] ${msg}`, 'info');
       });
 
       // Step 4: Writer polishes & synthesizes
       const finalOutput = await runWriterAgent(cat, draftEvents, verifications, (msg) => {
-        addAgentLog('Redactor', msg, 'info');
+        addAgentLog('Redactor', `[${cat.toUpperCase()}] ${msg}`, 'info');
       });
 
       // Step 5: Save results to Database
       addAgentLog('Coordinador', `Guardando informes y noticias validadas para ${cat} en base de datos...`, 'info');
 
       if (isSupabaseConfigured() && supabaseAdmin) {
-        // Clear previous category reports
-        addAgentLog('Sistema', `[Supabase] Limpiando informe previo de ${cat}...`, 'info');
-        const { error: delInformesError } = await supabaseAdmin
-          .from('informes')
-          .delete()
-          .eq('categoria', cat);
-          
-        if (delInformesError) throw new Error(`Error limpiando informes de Supabase: ${delInformesError.message}`);
+        // Clear and Write everything transactionally via RPC
+        addAgentLog('Sistema', `[Supabase] Actualizando base de datos de forma atómica para ${cat}...`, 'info');
+        
+        const noticiasRpcData = finalOutput.noticias.map((item) => ({
+          ...item.noticia,
+          fuentes: item.fuentes || []
+        }));
 
-        // Write final news and sources
-        for (const item of finalOutput.noticias) {
-          const { noticia, fuentes } = item;
-          
-          // Insert noticia
-          const { data: noticiaData, error: newsInsertError } = await supabaseAdmin
-            .from('noticias')
-            .insert([noticia])
-            .select()
-            .single();
-
-          if (newsInsertError) {
-            throw new Error(`Error insertando noticia: ${newsInsertError.message}`);
-          }
-
-          // Insert fuentes
-          if (fuentes && fuentes.length > 0) {
-            const fuentesToInsert = fuentes.map((f) => ({
-              ...f,
-              noticia_id: noticiaData.id
-            }));
-            
-            const { error: fuentesInsertError } = await supabaseAdmin
-              .from('fuentes')
-              .insert(fuentesToInsert);
-
-            if (fuentesInsertError) {
-              addAgentLog('Sistema', `⚠ Error insertando fuentes para la noticia "${noticia.titulo}": ${fuentesInsertError.message}`, 'error');
-            }
-          }
-        }
-
-        // Limit count to 5 active news items
-        const { data: existingNews, error: fetchError } = await supabaseAdmin
-          .from('noticias')
-          .select('id, importancia, fecha_actualizacion')
-          .eq('categoria', cat);
-
-        if (fetchError) throw fetchError;
-
-        const impMap: Record<string, number> = { 'Alta': 3, 'Media': 2, 'Baja': 1 };
-        const sortedNews = [...(existingNews || [])].sort((a, b) => {
-          const impA = impMap[a.importancia] || 0;
-          const impB = impMap[b.importancia] || 0;
-          if (impA !== impB) return impB - impA;
-          return new Date(b.fecha_actualizacion).getTime() - new Date(a.fecha_actualizacion).getTime();
+        const { error: rpcError } = await supabaseAdmin.rpc('guardar_datos_categoria', {
+          p_categoria: cat,
+          p_informe_contenido: finalOutput.informe,
+          p_noticias: noticiasRpcData
         });
 
-        if (sortedNews.length > 5) {
-          const idsToDelete = sortedNews.slice(5).map((n) => n.id);
-          addAgentLog('Sistema', `[Supabase] Limitando a 5 noticias. Eliminando ${idsToDelete.length} noticias sobrantes...`, 'info');
-          const { error: deleteError } = await supabaseAdmin
-            .from('noticias')
-            .delete()
-            .in('id', idsToDelete);
-          if (deleteError) throw deleteError;
+        if (rpcError) {
+          throw new Error(`Error guardando datos de ${cat} en Supabase vía RPC: ${rpcError.message}`);
         }
 
-        // Insert daily report (informe)
-        const { error: reportInsertError } = await supabaseAdmin
-          .from('informes')
-          .insert([{ categoria: cat, contenido: finalOutput.informe }]);
-
-        if (reportInsertError) {
-          throw new Error(`Error insertando informe de categoría: ${reportInsertError.message}`);
-        }
-
-        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} insertados y limitados exitosamente.`, 'success');
+        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} insertados y limitados exitosamente vía RPC.`, 'success');
       } else {
         // Fallback Local Storage Mode
         // Write to mockStore
@@ -233,7 +181,10 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
 
         addAgentLog('Sistema', `✓ [MockStore] Datos de ${cat} almacenados y limitados exitosamente en memoria del servidor.`, 'success');
       }
-    }
+    });
+
+    // Execute all category pipelines in parallel
+    await Promise.all(promises);
 
     globalLogs.lastUpdated = new Date().toISOString();
     addAgentLog('Coordinador', '★ Proceso de actualización diaria finalizado con éxito. Centro de inteligencia al día.', 'success');

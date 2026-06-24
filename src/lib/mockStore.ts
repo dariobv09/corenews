@@ -1,6 +1,20 @@
 // Mock Store for local fallback development (Rediseño Editorial)
 import { Noticia, Fuente, Informe, Categoria } from '@/types';
 
+// Load Node modules dynamically on the server to prevent browser bundling issues
+let fsModule: any = null;
+let pathModule: any = null;
+
+if (typeof window === 'undefined') {
+  try {
+    fsModule = require('fs');
+    pathModule = require('path');
+  } catch (e) {
+    // Ignore
+  }
+}
+
+
 // Helper to generate ISO dates relative to today
 const getRelativeDateISO = (daysAgo: number, hoursOffset: number = 0) => {
   const date = new Date();
@@ -429,14 +443,59 @@ const globalForStore = globalThis as unknown as {
   informes: Informe[];
 };
 
-if (!globalForStore.noticias) {
-  globalForStore.noticias = initialNoticias;
+const DATA_FILE_PATH = () => {
+  if (pathModule) {
+    return pathModule.join(process.cwd(), 'src', 'lib', 'mockStore_data.json');
+  }
+  return '';
+};
+
+function saveToLocalFile() {
+  if (process.env.NODE_ENV === 'production') return;
+  const filePath = DATA_FILE_PATH();
+  if (fsModule && filePath) {
+    try {
+      const data = {
+        noticias: globalForStore.noticias,
+        fuentes: globalForStore.fuentes,
+        informes: globalForStore.informes
+      };
+      fsModule.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error guardando mockStore en el archivo local:', err);
+    }
+  }
 }
-if (!globalForStore.fuentes) {
-  globalForStore.fuentes = initialFuentes;
+
+function loadFromLocalFile() {
+  if (process.env.NODE_ENV === 'production') return false;
+  const filePath = DATA_FILE_PATH();
+  if (fsModule && filePath && fsModule.existsSync(filePath)) {
+    try {
+      const content = fsModule.readFileSync(filePath, 'utf-8');
+      const data = JSON.parse(content);
+      if (data.noticias && data.fuentes && data.informes) {
+        globalForStore.noticias = data.noticias;
+        globalForStore.fuentes = data.fuentes;
+        globalForStore.informes = data.informes;
+        return true;
+      }
+    } catch (err) {
+      console.error('Error leyendo mockStore del archivo local:', err);
+    }
+  }
+  return false;
 }
-if (!globalForStore.informes) {
-  globalForStore.informes = initialInformes;
+
+// Initialize
+if (!globalForStore.noticias || !globalForStore.fuentes || !globalForStore.informes) {
+  const loaded = loadFromLocalFile();
+  if (!loaded) {
+    globalForStore.noticias = initialNoticias;
+    globalForStore.fuentes = initialFuentes;
+    globalForStore.informes = initialInformes;
+    saveToLocalFile();
+  }
 }
 
 export const mockStore = {
@@ -483,6 +542,7 @@ export const mockStore = {
       fecha_actualizacion: new Date().toISOString()
     };
     globalForStore.noticias.push(newNoticia);
+    saveToLocalFile();
     return newNoticia;
   },
 
@@ -496,6 +556,7 @@ export const mockStore = {
       globalForStore.fuentes.push(newFuente);
       added.push(newFuente);
     }
+    saveToLocalFile();
     return added;
   },
 
@@ -506,6 +567,7 @@ export const mockStore = {
       fecha_generacion: new Date().toISOString()
     };
     globalForStore.informes.push(newInforme);
+    saveToLocalFile();
     return newInforme;
   },
 
@@ -516,14 +578,17 @@ export const mockStore = {
 
     globalForStore.noticias = globalForStore.noticias.filter((n) => n.categoria !== categoria);
     globalForStore.fuentes = globalForStore.fuentes.filter((f) => !idsToRemove.includes(f.noticia_id));
+    saveToLocalFile();
   },
 
   deleteNoticias(ids: string[]) {
     globalForStore.noticias = globalForStore.noticias.filter((n) => !ids.includes(n.id));
     globalForStore.fuentes = globalForStore.fuentes.filter((f) => !ids.includes(f.noticia_id));
+    saveToLocalFile();
   },
 
   clearInformesByCategoria(categoria: Categoria) {
     globalForStore.informes = globalForStore.informes.filter((i) => i.categoria !== categoria);
+    saveToLocalFile();
   }
 };

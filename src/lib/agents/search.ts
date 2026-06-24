@@ -1,5 +1,8 @@
 // Search and Feed Aggregator for Agents
 import { Categoria } from '@/types';
+import Parser from 'rss-parser';
+
+const rssParser = new Parser();
 
 export interface FeedItem {
   title: string;
@@ -29,43 +32,30 @@ const FEEDS: Record<Categoria, { name: string; url: string }[]> = {
   ]
 };
 
-// Simple XML parser to extract RSS items without adding external dependencies
-function parseRSS(xmlText: string, sourceName: string): FeedItem[] {
+// Robust XML parser using rss-parser package
+async function parseRSS(xmlText: string, sourceName: string): Promise<FeedItem[]> {
   const items: FeedItem[] = [];
-  // Match all <item> tags
-  const matches = xmlText.matchAll(/<item>([\s\S]*?)<\/item>/g);
-  
-  for (const match of matches) {
-    const content = match[1];
-    
-    // Extract title, link, description, pubDate
-    let title = content.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/)?.[1] ||
-                content.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '';
-    
-    let link = content.match(/<link>([\s\S]*?)<\/link>/)?.[1] || '';
-    
-    let description = content.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] ||
-                      content.match(/<description>([\s\S]*?)<\/description>/)?.[1] || '';
-    
-    let pubDate = content.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || '';
+  try {
+    const feed = await rssParser.parseString(xmlText);
+    for (const item of feed.items || []) {
+      const title = item.title || '';
+      const link = item.link || '';
+      const description = item.contentSnippet || item.content || item.description || '';
+      const pubDate = item.pubDate || '';
 
-    // Clean strings (remove CDATA wrappers, HTML tags, trim)
-    title = cleanString(title);
-    link = cleanString(link);
-    description = cleanString(description).replace(/<[^>]*>/g, ''); // strip HTML tags
-    pubDate = cleanString(pubDate);
-
-    if (title) {
-      items.push({
-        title,
-        link,
-        description: description.substring(0, 300) + (description.length > 300 ? '...' : ''),
-        pubDate,
-        sourceName
-      });
+      if (title && link) {
+        items.push({
+          title: cleanString(title),
+          link: cleanString(link),
+          description: cleanString(description).replace(/<[^>]*>/g, '').substring(0, 300) + (description.length > 300 ? '...' : ''),
+          pubDate: cleanString(pubDate),
+          sourceName
+        });
+      }
     }
+  } catch (err: any) {
+    console.error(`Error procesando feed RSS de ${sourceName}:`, err);
   }
-
   return items;
 }
 
@@ -79,6 +69,67 @@ function cleanString(str: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
     .trim();
+}
+
+// Filters search results to keep the 6 most relevant items and avoid LLM token overload
+function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, limit: number = 6): FeedItem[] {
+  const keywords: Record<Categoria, string[]> = {
+    ia: [
+      'inteligencia artificial', 'artificial intelligence', 'openai', 'gpt', 'gemini', 'claude', 
+      'deepmind', 'llm', 'machine learning', 'nvidia', 'inference', 'sam altman', 'anthropic', 
+      'transformer', 'neural', 'reasoning', 'razonamiento'
+    ],
+    tecnologia: [
+      'tecnologia', 'technology', 'chip', 'semiconductor', 'tsmc', 'intel', 'samsung', 'apple', 
+      'microsoft', 'google', 'cybersecurity', 'ciberseguridad', 'vulnerabilidad', 'software', 
+      'hardware', 'asml', 'gaa', 'ransomware', 'zero-day'
+    ],
+    economia: [
+      'economia', 'economy', 'finance', 'finanzas', 'bce', 'fed', 'inflation', 'inflacion', 
+      'interest rates', 'tipos de interes', 'banco central', 'mercado', 'debt', 'deuda', 'growth', 
+      'crecimiento', 'brent', 'crudo', 'petroleo'
+    ],
+    politica: [
+      'politica', 'politics', 'geopolitics', 'geopolitica', 'gobierno', 'government', 'treaty', 
+      'tratado', 'security', 'seguridad', 'nato', 'otan', 'alliance', 'cumbre', 'summit', 
+      'relaciones', 'arancel', 'sabotaje', 'defensa'
+    ]
+  };
+
+  const catKeywords = keywords[categoria] || [];
+
+  const scoredItems = items.map((item) => {
+    let score = 0;
+    
+    // 1. Text length contribution (longer descriptions are usually more descriptive)
+    const textLength = (item.title + ' ' + item.description).length;
+    score += Math.min(5, textLength / 100);
+    
+    // 2. Keyword matching
+    const contentLower = (item.title + ' ' + item.description).toLowerCase();
+    for (const kw of catKeywords) {
+      if (contentLower.includes(kw)) {
+        score += 3;
+      }
+    }
+    
+    // 3. Recency boost (up to 10 points for articles in the last few hours)
+    const pubTime = Date.parse(item.pubDate);
+    if (!isNaN(pubTime)) {
+      const hoursAgo = (Date.now() - pubTime) / (1000 * 60 * 60);
+      if (hoursAgo >= 0) {
+        score += Math.max(0, 10 - (hoursAgo / 12));
+      }
+    }
+    
+    return { item, score };
+  });
+
+  // Sort by score descending
+  scoredItems.sort((a, b) => b.score - a.score);
+
+  // Return the top N items
+  return scoredItems.slice(0, limit).map((x) => x.item);
 }
 
 // Primary function to fetch news items from RSS feeds
@@ -110,7 +161,7 @@ export async function searchCategoryNews(categoria: Categoria, logCallback?: (ms
       }
       
       const xmlText = await response.text();
-      const parsed = parseRSS(xmlText, feed.name);
+      const parsed = await parseRSS(xmlText, feed.name);
       
       logCallback?.(`✓ Recopilados ${parsed.length} artículos de ${feed.name}`);
       allItems.push(...parsed);
@@ -125,7 +176,10 @@ export async function searchCategoryNews(categoria: Categoria, logCallback?: (ms
     return getFallbackSeedItems(categoria);
   }
 
-  return allItems.slice(0, 15); // Return top 15 items to avoid token overload
+  // Filter by relevance to limit count to 6 and avoid token overload
+  const filteredItems = filterFeedItemsByRelevance(allItems, categoria, 6);
+  logCallback?.(`Filtrados por relevancia: Seleccionados ${filteredItems.length} artículos principales para el especialista.`);
+  return filteredItems;
 }
 
 function getFallbackSeedItems(categoria: Categoria): FeedItem[] {
