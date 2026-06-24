@@ -376,8 +376,11 @@ export const mockStore = {
     return undefined;
   },
 
-  getFuentes(noticiaId: string): Fuente[] {
-    return globalForStore.fuentes.filter((f) => f.noticia_id === noticiaId);
+  getFuentes(noticiaId?: string): Fuente[] {
+    if (noticiaId) {
+      return globalForStore.fuentes.filter((f) => f.noticia_id === noticiaId);
+    }
+    return globalForStore.fuentes;
   },
 
   getInformes(categoria?: Categoria): Informe[] {
@@ -429,6 +432,11 @@ export const mockStore = {
 
     globalForStore.noticias = globalForStore.noticias.filter((n) => n.categoria !== categoria);
     globalForStore.fuentes = globalForStore.fuentes.filter((f) => !idsToRemove.includes(f.noticia_id));
+  },
+
+  deleteNoticias(ids: string[]) {
+    globalForStore.noticias = globalForStore.noticias.filter((n) => !ids.includes(n.id));
+    globalForStore.fuentes = globalForStore.fuentes.filter((f) => !ids.includes(f.noticia_id));
   },
 
   clearInformesByCategoria(categoria: Categoria) {

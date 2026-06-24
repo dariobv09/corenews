@@ -12,6 +12,8 @@ const globalLogs = globalThis as unknown as {
   logs: AgentLog[];
   isUpdating: boolean;
   lastUpdated: string | null;
+  lastCheckedTime?: number;
+  processedUrls?: Set<string>;
 };
 
 if (!globalLogs.logs) {
@@ -22,6 +24,9 @@ if (globalLogs.isUpdating === undefined) {
 }
 if (globalLogs.lastUpdated === undefined) {
   globalLogs.lastUpdated = null;
+}
+if (!globalLogs.processedUrls) {
+  globalLogs.processedUrls = new Set<string>();
 }
 
 export function getAgentLogs() {
@@ -114,17 +119,8 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
       addAgentLog('Coordinador', `Guardando informes y noticias validadas para ${cat} en base de datos...`, 'info');
 
       if (isSupabaseConfigured() && supabaseAdmin) {
-        // Clear previous category records
-        addAgentLog('Sistema', `[Supabase] Limpiando noticias e informes previos de ${cat}...`, 'info');
-        
-        // Deleting from noticias cascades to fuentes
-        const { error: delNoticiasError } = await supabaseAdmin
-          .from('noticias')
-          .delete()
-          .eq('categoria', cat);
-          
-        if (delNoticiasError) throw new Error(`Error limpiando noticias de Supabase: ${delNoticiasError.message}`);
-
+        // Clear previous category reports
+        addAgentLog('Sistema', `[Supabase] Limpiando informe previo de ${cat}...`, 'info');
         const { error: delInformesError } = await supabaseAdmin
           .from('informes')
           .delete()
@@ -164,6 +160,32 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
           }
         }
 
+        // Limit count to 5 active news items
+        const { data: existingNews, error: fetchError } = await supabaseAdmin
+          .from('noticias')
+          .select('id, importancia, fecha_actualizacion')
+          .eq('categoria', cat);
+
+        if (fetchError) throw fetchError;
+
+        const impMap: Record<string, number> = { 'Alta': 3, 'Media': 2, 'Baja': 1 };
+        const sortedNews = [...(existingNews || [])].sort((a, b) => {
+          const impA = impMap[a.importancia] || 0;
+          const impB = impMap[b.importancia] || 0;
+          if (impA !== impB) return impB - impA;
+          return new Date(b.fecha_actualizacion).getTime() - new Date(a.fecha_actualizacion).getTime();
+        });
+
+        if (sortedNews.length > 5) {
+          const idsToDelete = sortedNews.slice(5).map((n) => n.id);
+          addAgentLog('Sistema', `[Supabase] Limitando a 5 noticias. Eliminando ${idsToDelete.length} noticias sobrantes...`, 'info');
+          const { error: deleteError } = await supabaseAdmin
+            .from('noticias')
+            .delete()
+            .in('id', idsToDelete);
+          if (deleteError) throw deleteError;
+        }
+
         // Insert daily report (informe)
         const { error: reportInsertError } = await supabaseAdmin
           .from('informes')
@@ -173,13 +195,9 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
           throw new Error(`Error insertando informe de categoría: ${reportInsertError.message}`);
         }
 
-        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} insertados exitosamente.`, 'success');
+        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} insertados y limitados exitosamente.`, 'success');
       } else {
         // Fallback Local Storage Mode
-        addAgentLog('Sistema', `[MockStore] Limpiando noticias e informes previos de ${cat}...`, 'info');
-        mockStore.clearNoticiasByCategoria(cat);
-        mockStore.clearInformesByCategoria(cat);
-
         // Write to mockStore
         for (const item of finalOutput.noticias) {
           const addedNoticia = mockStore.addNoticia(item.noticia);
@@ -190,12 +208,30 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
           mockStore.addFuentes(fuentesToInsert);
         }
 
+        // Limit count to 5 active news items in mockStore
+        const allCatNews = mockStore.getNoticias(cat);
+        const impMap: Record<string, number> = { 'Alta': 3, 'Media': 2, 'Baja': 1 };
+        const sortedNews = [...allCatNews].sort((a, b) => {
+          const impA = impMap[a.importancia] || 0;
+          const impB = impMap[b.importancia] || 0;
+          if (impA !== impB) return impB - impA;
+          return new Date(b.fecha_actualizacion).getTime() - new Date(a.fecha_actualizacion).getTime();
+        });
+
+        if (sortedNews.length > 5) {
+          const idsToDelete = sortedNews.slice(5).map((n) => n.id);
+          addAgentLog('Sistema', `[MockStore] Limitando a 5 noticias. Eliminando ${idsToDelete.length} noticias sobrantes...`, 'info');
+          mockStore.deleteNoticias(idsToDelete);
+        }
+
+        // Clear and add daily report (informe)
+        mockStore.clearInformesByCategoria(cat);
         mockStore.addInforme({
           categoria: cat,
           contenido: finalOutput.informe
         });
 
-        addAgentLog('Sistema', `✓ [MockStore] Datos de ${cat} almacenados exitosamente en memoria del servidor.`, 'success');
+        addAgentLog('Sistema', `✓ [MockStore] Datos de ${cat} almacenados y limitados exitosamente en memoria del servidor.`, 'success');
       }
     }
 
@@ -208,5 +244,57 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
     addAgentLog('Coordinador', `❌ Proceso cancelado debido a un error crítico: ${errorMsg}`, 'error');
     globalLogs.isUpdating = false;
     return { success: false, error: errorMsg };
+  }
+}
+
+export async function checkAndTriggerUpdateIfNeeded() {
+  if (globalLogs.isUpdating) return;
+
+  const now = Date.now();
+  if (globalLogs.lastCheckedTime && now - globalLogs.lastCheckedTime < 2 * 60 * 1000) {
+    return;
+  }
+  globalLogs.lastCheckedTime = now;
+
+  try {
+    console.log("[AutoUpdate] Iniciando comprobación de noticias nuevas...");
+    const existingUrls = new Set<string>();
+
+    if (isSupabaseConfigured() && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from('fuentes')
+        .select('url');
+      if (!error && data) {
+        data.forEach((f) => { if (f.url) existingUrls.add(f.url); });
+      }
+    } else {
+      mockStore.getFuentes().forEach((f) => { if (f.url) existingUrls.add(f.url); });
+    }
+
+    const categories: Categoria[] = ['ia', 'tecnologia', 'economia', 'politica'];
+    let hasNewNews = false;
+
+    for (const cat of categories) {
+      const feedItems = await searchCategoryNews(cat, () => {});
+      for (const item of feedItems) {
+        if (!item.link) continue;
+        if (!existingUrls.has(item.link) && !globalLogs.processedUrls!.has(item.link)) {
+          console.log(`[AutoUpdate] Nueva noticia relevante detectada en ${cat}: ${item.title}`);
+          hasNewNews = true;
+          globalLogs.processedUrls!.add(item.link);
+        }
+      }
+    }
+
+    if (hasNewNews) {
+      console.log("[AutoUpdate] Nuevas noticias encontradas. Iniciando pipeline de agentes...");
+      executeUpdatePipeline().catch((err) => {
+        console.error("[AutoUpdate] Error en ejecución del pipeline de agentes:", err);
+      });
+    } else {
+      console.log("[AutoUpdate] No se encontraron noticias nuevas.");
+    }
+  } catch (error) {
+    console.error("[AutoUpdate] Error en la comprobación automática de noticias:", error);
   }
 }

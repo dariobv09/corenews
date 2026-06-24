@@ -3,12 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Categoria, Noticia, Fuente, Informe, AgentLog } from '@/types';
 import {
-  Brain,
-  Terminal,
   RefreshCw,
   FileText,
   ExternalLink,
-  Database,
   X,
   ChevronRight,
   Clock,
@@ -50,7 +47,6 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
   const [showLogs, setShowLogs]           = useState(false);
   const [logs, setLogs]                   = useState<AgentLog[]>([]);
   const [lastUpdated, setLastUpdated]     = useState<string | null>(null);
-  const [isSupabase, setIsSupabase]       = useState(false);
 
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -74,10 +70,19 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
       if (!res.ok) return;
       const data = await res.json();
       setLogs(data.logs || []);
-      setIsUpdating(data.isUpdating);
+      
+      // Auto-open terminal logs when transitioning to updating state, and reload on completion
+      setIsUpdating((prevIsUpdating) => {
+        if (!prevIsUpdating && data.isUpdating) {
+          setShowLogs(true);
+        }
+        if (prevIsUpdating && !data.isUpdating) {
+          reloadDashboardData();
+        }
+        return data.isUpdating;
+      });
+      
       setLastUpdated(data.lastUpdated);
-      setIsSupabase(data.isSupabaseConfigured);
-      if (isUpdating && !data.isUpdating) reloadDashboardData();
     } catch { /* silent */ }
   };
 
@@ -90,20 +95,6 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
         setInformes(data.informes || {});
       }
     } catch { /* silent */ }
-  };
-
-  const triggerUpdate = async () => {
-    if (isUpdating) return;
-    setIsUpdating(true);
-    setShowLogs(true);
-    setLogs([]);
-    try {
-      const res = await fetch('/api/update', { method: 'POST' });
-      if (!res.ok) throw new Error('Error al iniciar la actualización.');
-    } catch (e: any) {
-      alert(e.message || 'Error de red.');
-      setIsUpdating(false);
-    }
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -145,13 +136,14 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
 
             {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 8,
-                background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-violet))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Brain style={{ width: 18, height: 18, color: '#fff' }} />
-              </div>
+              <img
+                src="/icon.jpg"
+                alt="corenews logo"
+                style={{
+                  width: 34, height: 34, borderRadius: 8,
+                  objectFit: 'cover', border: '1px solid var(--border)'
+                }}
+              />
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2, letterSpacing: '-0.02em', textTransform: 'lowercase' }}>
                   corenews
@@ -164,16 +156,6 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
 
             {/* Acciones */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Badge DB */}
-              <span style={{
-                fontSize: 11, padding: '4px 10px', borderRadius: 20,
-                background: 'var(--bg-subtle)', color: 'var(--text-muted)',
-                border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 5
-              }}>
-                <Database style={{ width: 11, height: 11 }} />
-                {isSupabase ? 'Supabase' : 'Local'}
-              </span>
-
               {/* Badge última actualización */}
               <span style={{
                 fontSize: 11, padding: '4px 10px', borderRadius: 20,
@@ -183,50 +165,6 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
                 <Clock style={{ width: 11, height: 11 }} />
                 {formatDate(lastUpdated)}
               </span>
-
-              {/* Terminal logs */}
-              <button
-                onClick={() => setShowLogs(!showLogs)}
-                title="Terminal de agentes"
-                style={{
-                  padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                  border: `1px solid ${showLogs ? 'var(--accent-blue)' : 'var(--border)'}`,
-                  background: showLogs ? 'rgba(112,147,200,0.08)' : 'var(--bg-subtle)',
-                  color: showLogs ? 'var(--accent-blue)' : 'var(--text-muted)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <Terminal style={{ width: 13, height: 13 }} />
-                Terminal
-                {isUpdating && (
-                  <span className="animate-soft-pulse" style={{
-                    width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-violet)'
-                  }} />
-                )}
-              </button>
-
-              {/* Actualizar */}
-              <button
-                onClick={triggerUpdate}
-                disabled={isUpdating}
-                style={{
-                  padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  border: 'none',
-                  background: isUpdating
-                    ? 'var(--bg-subtle)'
-                    : 'linear-gradient(135deg, var(--accent-blue), var(--accent-violet))',
-                  color: isUpdating ? 'var(--text-muted)' : '#fff',
-                  transition: 'opacity 0.2s',
-                  opacity: isUpdating ? 0.6 : 1,
-                  boxShadow: isUpdating ? 'none' : '0 2px 12px rgba(112,147,200,0.35)'
-                }}
-              >
-                <RefreshCw style={{ width: 13, height: 13 }} className={isUpdating ? 'animate-spin' : ''} />
-                {isUpdating ? 'Analizando...' : 'Actualizar'}
-              </button>
             </div>
           </div>
         </div>
@@ -322,7 +260,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
 
         {/* ── LISTA DE ARTÍCULOS ────────────────── */}
         {filteredNoticias.length === 0 ? (
-          <EmptyState onUpdate={triggerUpdate} isUpdating={isUpdating} />
+          <EmptyState isUpdating={isUpdating} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredNoticias.map((noticia, idx) => (
@@ -861,7 +799,7 @@ function AgentTerminal({
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {logs.length === 0 ? (
           <div style={{ color: '#444460', fontStyle: 'italic' }}>
-            {isUpdating ? '▶ preparando espacio de trabajo para los agentes...' : '$ pulsa "Actualizar" para iniciar el flujo de agentes'}
+            {isUpdating ? '▶ preparando espacio de trabajo para los agentes...' : '$ terminal de agentes activa. Monitoreando actualizaciones...'}
           </div>
         ) : (
           logs.map((log, i) => {
@@ -899,7 +837,7 @@ function AgentTerminal({
 /* ════════════════════════════════════════════════════
    EMPTY STATE
    ════════════════════════════════════════════════════ */
-function EmptyState({ onUpdate, isUpdating }: { onUpdate: () => void; isUpdating: boolean }) {
+function EmptyState({ isUpdating }: { isUpdating: boolean }) {
   return (
     <div style={{
       padding: '80px 24px', textAlign: 'center',
@@ -916,22 +854,11 @@ function EmptyState({ onUpdate, isUpdating }: { onUpdate: () => void; isUpdating
       <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
         Sin análisis para esta categoría
       </h3>
-      <p style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 24, maxWidth: 340, margin: '0 auto 24px' }}>
-        Los agentes aún no han recopilado información para hoy. Inicia el análisis para obtener los primeros informes.
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 380, margin: '0 auto' }}>
+        {isUpdating
+          ? 'Los agentes están analizando las últimas noticias en segundo plano...'
+          : 'El sistema multiagente está buscando y contrastando información relevante de forma automática.'}
       </p>
-      <button
-        onClick={onUpdate}
-        disabled={isUpdating}
-        style={{
-          padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-          cursor: isUpdating ? 'not-allowed' : 'pointer', border: 'none',
-          background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-violet))',
-          color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 7
-        }}
-      >
-        <RefreshCw style={{ width: 14, height: 14 }} className={isUpdating ? 'animate-spin' : ''} />
-        {isUpdating ? 'Analizando...' : 'Iniciar análisis'}
-      </button>
     </div>
   );
 }

@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "corenews | Inteligencia de Noticias Verificadas",
   description: "Dashboard personal de inteligencia automatizada sobre Inteligencia Artificial, Tecnología, Economía y Geopolítica.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.jpg",
+    apple: "/apple-icon.jpg",
+  },
 };
 
 export default function RootLayout({
