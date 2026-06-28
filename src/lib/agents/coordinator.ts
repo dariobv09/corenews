@@ -230,6 +230,20 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
     // Sync current state to GitHub
     await syncToGitHub((msg) => addAgentLog('Sistema', msg, 'info'));
 
+    // --- PIPELINE DE PUBLICACIÓN AUTOMÁTICA EN TIKTOK ---
+    try {
+      addAgentLog('Coordinador', '🎬 Iniciando pipeline de publicación de carruseles de TikTok (Modo Foto)...', 'info');
+      const { publishTikTokCarousels } = await import('./socialPublisher');
+      const tiktokResult = await publishTikTokCarousels((msg, type) => addAgentLog('Sistema', msg, type || 'info'));
+      if (tiktokResult.success) {
+        addAgentLog('Coordinador', '✓ Pipeline de TikTok finalizado exitosamente.', 'success');
+      } else {
+        addAgentLog('Coordinador', `⚠ Pipeline de TikTok finalizó con advertencias: ${tiktokResult.error}`, 'warning');
+      }
+    } catch (tkErr: any) {
+      addAgentLog('Coordinador', `❌ Error inesperado en el pipeline de TikTok: ${tkErr.message || tkErr}`, 'warning');
+    }
+
     globalLogs.lastUpdated = new Date().toISOString();
     addAgentLog('Coordinador', '★ Proceso de actualización diaria finalizado con éxito. Centro de inteligencia al día.', 'success');
     globalLogs.isUpdating = false;
