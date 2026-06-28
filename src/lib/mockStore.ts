@@ -535,11 +535,11 @@ export const mockStore = {
     return sorted;
   },
 
-  addNoticia(noticiaData: Omit<Noticia, 'id' | 'fecha_actualizacion'> & { id?: string }): Noticia {
+  addNoticia(noticiaData: Omit<Noticia, 'id' | 'fecha_actualizacion'> & { id?: string; fecha_actualizacion?: string }): Noticia {
     const newNoticia: Noticia = {
       ...noticiaData,
       id: noticiaData.id || crypto.randomUUID(),
-      fecha_actualizacion: new Date().toISOString()
+      fecha_actualizacion: noticiaData.fecha_actualizacion || new Date().toISOString()
     };
     globalForStore.noticias.push(newNoticia);
     saveToLocalFile();
@@ -560,11 +560,11 @@ export const mockStore = {
     return added;
   },
 
-  addInforme(informeData: Omit<Informe, 'id' | 'fecha_generacion'>): Informe {
+  addInforme(informeData: Omit<Informe, 'id' | 'fecha_generacion'> & { fecha_generacion?: string }): Informe {
     const newInforme: Informe = {
       ...informeData,
       id: crypto.randomUUID(),
-      fecha_generacion: new Date().toISOString()
+      fecha_generacion: informeData.fecha_generacion || new Date().toISOString()
     };
     globalForStore.informes.push(newInforme);
     saveToLocalFile();
@@ -589,6 +589,13 @@ export const mockStore = {
 
   clearInformesByCategoria(categoria: Categoria) {
     globalForStore.informes = globalForStore.informes.filter((i) => i.categoria !== categoria);
+    saveToLocalFile();
+  },
+
+  deleteOldInformes(categoria: Categoria, thresholdTime: number) {
+    globalForStore.informes = globalForStore.informes.filter(
+      (i) => i.categoria !== categoria || new Date(i.fecha_generacion).getTime() >= thresholdTime
+    );
     saveToLocalFile();
   }
 };

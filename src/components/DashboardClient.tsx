@@ -36,6 +36,61 @@ const SECTION_LABELS: Record<string, { title: string; accent: 'blue' | 'violet' 
   estado_actual:      { title: '6. Estado actual',        accent: 'violet' },
 };
 
+function getRelativeCycleLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  
+  // Get today's 8:00 AM local
+  const today8 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0, 0);
+  
+  // Determine the start of the current cycle
+  let currentCycleStart: Date;
+  if (now >= today8) {
+    currentCycleStart = today8;
+  } else {
+    currentCycleStart = new Date(today8.getTime() - 24 * 60 * 60 * 1000);
+  }
+  
+  // Determine the cycle start for 'date'
+  const date8 = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
+  let dateCycleStart: Date;
+  if (date >= date8) {
+    dateCycleStart = date8;
+  } else {
+    dateCycleStart = new Date(date8.getTime() - 24 * 60 * 60 * 1000);
+  }
+  
+  // Calculate difference in days
+  const diffTime = currentCycleStart.getTime() - dateCycleStart.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    return "Noticia del Día";
+  } else {
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+}
+
+function getCycleBadgeStyles(dateStr: string) {
+  const label = getRelativeCycleLabel(dateStr);
+  if (label === "Noticia del Día") {
+    return {
+      background: 'rgba(59, 130, 246, 0.12)', // Soft blue
+      color: 'var(--accent-blue)',
+      border: '1px solid rgba(59, 130, 246, 0.25)'
+    };
+  } else {
+    return {
+      background: 'rgba(156, 163, 175, 0.12)', // Soft gray
+      color: 'var(--text-muted)',
+      border: '1px solid rgba(156, 163, 175, 0.25)'
+    };
+  }
+}
+
 export default function DashboardClient({ initialNoticias, initialInformes }: DashboardClientProps) {
   const [activeTab, setActiveTab]         = useState<Categoria>('ia');
   const [noticias, setNoticias]           = useState<Noticia[]>(initialNoticias);
@@ -324,10 +379,16 @@ function ArticleCard({ noticia, index, onClick }: { noticia: Noticia; index: num
                   ★ Relevancia Alta
                 </span>
               )}
+              <span style={{
+                fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+                ...getCycleBadgeStyles(noticia.fecha_actualizacion)
+              }}>
+                {getRelativeCycleLabel(noticia.fecha_actualizacion)}
+              </span>
               <span style={{ fontSize: 11, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Clock style={{ width: 10, height: 10 }} />
                 {new Date(noticia.fecha_actualizacion).toLocaleDateString('es-ES', {
-                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  hour: '2-digit', minute: '2-digit'
                 })}
               </span>
             </div>
@@ -456,10 +517,15 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
                 ★ Relevancia Alta
               </span>
             )}
+             <span style={{
+              fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+              ...getCycleBadgeStyles(noticia.fecha_actualizacion)
+            }}>
+              {getRelativeCycleLabel(noticia.fecha_actualizacion)}
+            </span>
             <span style={{ fontSize: 12, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <Clock style={{ width: 11, height: 11 }} />
               {new Date(noticia.fecha_actualizacion).toLocaleDateString('es-ES', {
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
               })}
             </span>

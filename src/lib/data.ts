@@ -90,3 +90,41 @@ export async function getLatestReportByCategory(categoria: Categoria): Promise<I
   const mockReports = mockStore.getInformes(categoria);
   return mockReports.length > 0 ? mockReports[0] : null;
 }
+
+export async function getProcessedUrlsInLast5Days(categoria: Categoria): Promise<string[]> {
+  const threshold = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+  
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('noticias')
+        .select('fuentes(url)')
+        .eq('categoria', categoria)
+        .gte('fecha_actualizacion', threshold);
+
+      if (error) throw error;
+      
+      const urls = data?.flatMap(n => 
+        (n.fuentes as { url: string }[] || [])
+          .map(f => f.url)
+          .filter(Boolean)
+      ) || [];
+      
+      return urls;
+    } catch (err) {
+      console.error('Error recuperando URLs procesadas de Supabase, recurriendo a mockStore:', err);
+    }
+  }
+
+  // Fallback to local memory store
+  const thresholdTime = Date.now() - 5 * 24 * 60 * 60 * 1000;
+  const noticias = mockStore.getNoticias(categoria)
+    .filter(n => new Date(n.fecha_actualizacion).getTime() >= thresholdTime);
+  const urls = noticias.flatMap(n => 
+    mockStore.getFuentes(n.id)
+      .map(f => f.url || '')
+      .filter(Boolean)
+  );
+  return urls;
+}
+

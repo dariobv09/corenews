@@ -186,20 +186,22 @@ La firma del Tratado Anglo-Nórdico de Infraestructuras establece un marco de co
 CREATE OR REPLACE FUNCTION guardar_datos_categoria(
     p_categoria TEXT,
     p_informe_contenido TEXT,
-    p_noticias JSONB
+    p_noticias JSONB,
+    p_fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT now()
 ) RETURNS VOID AS $$
 DECLARE
     v_noticia JSONB;
     v_noticia_id UUID;
     v_fuente JSONB;
-    v_sorted_ids UUID[];
 BEGIN
-    -- 1. Borrar informes previos de la categoría
-    DELETE FROM informes WHERE categoria = p_categoria;
+    -- 1. Borrar informes con más de 5 días de antigüedad
+    DELETE FROM informes 
+    WHERE categoria = p_categoria 
+      AND fecha_generacion < now() - INTERVAL '5 days';
     
     -- 2. Insertar el nuevo informe
-    INSERT INTO informes (categoria, contenido)
-    VALUES (p_categoria, p_informe_contenido);
+    INSERT INTO informes (categoria, contenido, fecha_generacion)
+    VALUES (p_categoria, p_informe_contenido, p_fecha_actualizacion);
     
     -- 3. Insertar noticias y fuentes
     FOR v_noticia IN SELECT * FROM jsonb_array_elements(p_noticias) LOOP
@@ -216,7 +218,8 @@ BEGIN
             datos_verificables, 
             estado_actual, 
             declaraciones, 
-            consecuencias
+            consecuencias,
+            fecha_actualizacion
         ) VALUES (
             p_categoria, 
             (v_noticia->>'importancia')::TEXT, 
@@ -229,7 +232,8 @@ BEGIN
             (v_noticia->>'datos_verificables')::TEXT,
             (v_noticia->>'estado_actual')::TEXT, 
             (v_noticia->>'declaraciones')::TEXT, 
-            (v_noticia->>'consecuencias')::TEXT
+            (v_noticia->>'consecuencias')::TEXT,
+            p_fecha_actualizacion
         ) RETURNING id INTO v_noticia_id;
         
         -- Insertar fuentes si las hay
@@ -254,24 +258,10 @@ BEGIN
         END IF;
     END LOOP;
     
-    -- 4. Limitar a las 5 noticias más importantes/recientes y borrar el resto
-    SELECT array_agg(id) INTO v_sorted_ids FROM (
-        SELECT id FROM noticias
-        WHERE categoria = p_categoria
-        ORDER BY 
-            CASE importancia 
-                WHEN 'Alta' THEN 3
-                WHEN 'Media' THEN 2
-                WHEN 'Baja' THEN 1
-                ELSE 0
-            END DESC,
-            fecha_actualizacion DESC
-        LIMIT 5
-    ) AS sub;
-    
+    -- 4. Borrar noticias con más de 5 días de antigüedad (fuentes se eliminan en cascada)
     DELETE FROM noticias 
     WHERE categoria = p_categoria 
-      AND NOT (id = ANY(v_sorted_ids));
+      AND fecha_actualizacion < now() - INTERVAL '5 days';
       
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

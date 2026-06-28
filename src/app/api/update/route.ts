@@ -1,6 +1,6 @@
 // API Route to trigger the multi-agent update cycle
 import { NextResponse } from 'next/server';
-import { executeUpdatePipeline } from '@/lib/agents/coordinator';
+import { executeUpdatePipeline, executeRewritePipeline } from '@/lib/agents/coordinator';
 
 export async function POST(request: Request) {
   try {
@@ -20,15 +20,31 @@ export async function POST(request: Request) {
       }
     }
 
-    // Trigger pipeline in the background
-    executeUpdatePipeline().catch((err) => {
-      console.error('Error en ejecución en segundo plano del pipeline de agentes:', err);
-    });
+    // Parse mode query parameter (e.g. /api/update?mode=rewrite)
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('mode');
 
-    return NextResponse.json({
-      status: 'started',
-      message: 'El sistema multiagente ha comenzado el proceso de investigación y verificación.'
-    });
+    if (mode === 'rewrite') {
+      // Trigger rewrite pipeline in the background
+      executeRewritePipeline().catch((err) => {
+        console.error('Error en ejecución en segundo plano de la re-redacción de agentes:', err);
+      });
+
+      return NextResponse.json({
+        status: 'started',
+        message: 'El sistema multiagente ha comenzado la re-redacción de todos los artículos existentes.'
+      });
+    } else {
+      // Trigger standard update pipeline in the background
+      executeUpdatePipeline().catch((err) => {
+        console.error('Error en ejecución en segundo plano del pipeline de agentes:', err);
+      });
+
+      return NextResponse.json({
+        status: 'started',
+        message: 'El sistema multiagente ha comenzado el proceso de investigación y verificación.'
+      });
+    }
   } catch (error: any) {
     return NextResponse.json({ error: error.message || error }, { status: 500 });
   }

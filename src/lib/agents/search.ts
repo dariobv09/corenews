@@ -71,6 +71,77 @@ function cleanString(str: string): string {
     .trim();
 }
 
+// Helper to verify if an article contains comparative timeframe context or is current news affecting today's publication date
+function checkTimeframeRelevance(title: string, description: string): { hasTimelineMatch: boolean; boost: number } {
+  const text = (title + ' ' + description).toLowerCase();
+  
+  // Patterns showing comparisons with past stages or clear benchmark dates in the past
+  const pastIndicators = [
+    /hace (un|\d+|varios) (año|mes|semana|día|hora)s?/,
+    /año pasado/,
+    /mes pasado/,
+    /anteriormente/,
+    /en el pasado/,
+    /previamente/,
+    /históricos?/,
+    /máximos? (históricos?|de \d+)/,
+    /mínimos? (históricos?|de \d+)/,
+    /a year ago/,
+    /\d+ (year|month|day|week|hour)s? ago/,
+    /last year/,
+    /last month/,
+    /previously/,
+    /historical/,
+    /yoy/,
+    /mom/,
+    /interanual/,
+    /en comparación con/
+  ];
+
+  // Patterns showing current status or impact on today's publication date
+  const presentIndicators = [
+    /\bhoy\b/,
+    /\bahora\b/,
+    /actualmente/,
+    /hoy en día/,
+    /al día de hoy/,
+    /\btoday\b/,
+    /\bnow\b/,
+    /currently/,
+    /en este momento/,
+    /afecta/
+  ];
+
+  let hasPast = false;
+  for (const regex of pastIndicators) {
+    if (regex.test(text)) {
+      hasPast = true;
+      break;
+    }
+  }
+
+  let hasPresent = false;
+  for (const regex of presentIndicators) {
+    if (regex.test(text)) {
+      hasPresent = true;
+      break;
+    }
+  }
+
+  if (hasPast && hasPresent) {
+    // Highly relevant: connects a clear past benchmark to today's status
+    return { hasTimelineMatch: true, boost: 12 };
+  } else if (hasPresent) {
+    // Current news affecting today
+    return { hasTimelineMatch: false, boost: 6 };
+  } else if (hasPast) {
+    // Just has past reference, could be historical background
+    return { hasTimelineMatch: true, boost: 4 };
+  }
+
+  return { hasTimelineMatch: false, boost: 0 };
+}
+
 // Filters search results to keep the 6 most relevant items and avoid LLM token overload
 function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, limit: number = 6): FeedItem[] {
   const keywords: Record<Categoria, string[]> = {
@@ -113,12 +184,33 @@ function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, lim
       }
     }
     
-    // 3. Recency boost (up to 10 points for articles in the last few hours)
+    // 3. Timeframe comparison & impact boost
+    const tf = checkTimeframeRelevance(item.title, item.description);
+    score += tf.boost;
+    
+    // 4. Recency boost & date-based filtering
     const pubTime = Date.parse(item.pubDate);
     if (!isNaN(pubTime)) {
       const hoursAgo = (Date.now() - pubTime) / (1000 * 60 * 60);
       if (hoursAgo >= 0) {
-        score += Math.max(0, 10 - (hoursAgo / 12));
+        if (hoursAgo > 72) {
+          // Outdated penalty: if it is older than 72 hours, it must have a clear comparative timeframe
+          // to be relevant (e.g. comparing past stage to today). Otherwise, penalize heavily.
+          if (!tf.hasTimelineMatch) {
+            score -= 15;
+          } else {
+            // Keep some points if it compares past to present, but reduce standard recency
+            score += Math.max(0, 4 - (hoursAgo / 48));
+          }
+        } else {
+          // Recent articles get a nice boost
+          score += Math.max(0, 10 - (hoursAgo / 8));
+        }
+      }
+    } else {
+      // If date is not parseable but has timeframe indicators, give a minor boost
+      if (tf.hasTimelineMatch) {
+        score += 3;
       }
     }
     
