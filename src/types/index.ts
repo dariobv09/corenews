@@ -17,6 +17,7 @@ export interface Noticia {
   estado_actual: string;      // 6. Estado actual
   declaraciones: string;      // SECCIÓN DE DECLARACIONES
   consecuencias: string;      // POSIBLES CONSECUENCIAS (Proyecciones, Precedentes, Efecto Dominó)
+  meta_description?: string;   // Síntesis corta optimizada para SEO (< 150 caracteres)
   fecha_actualizacion: string;
   fuentes?: Fuente[];
 }

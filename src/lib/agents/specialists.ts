@@ -15,6 +15,7 @@ export interface DraftEvent {
   declaraciones_borrador: string;      // SECCIÓN DE DECLARACIONES
   consecuencias_borrador: string;      // POSIBLES CONSECUENCIAS (Proyecciones, Precedentes, Efecto Dominó)
   importancia: Importancia;
+  meta_description?: string;            // Síntesis corta optimizada para SEO (< 150 caracteres)
   fuentes_propuestas: {
     nombre: string;
     url: string | null;
@@ -81,6 +82,7 @@ Estructura cada evento bajo la clave "eventos" con los siguientes campos OBLIGAT
   2. Precedentes Históricos: Fundamentar las proyecciones en hechos históricos, ciclos económicos o transiciones tecnológicas del pasado con un patrón coincidente.
   3. Efecto Dominó: Conectar el evento actual con su impacto potencial en los otros pilares (IA, tecnología, economía o geopolítica).
 - "importancia": "Alta", "Media" o "Baja".
+- "meta_description": Breve descripción o síntesis del artículo de menos de 150 caracteres, optimizada para SEO y sin clickbait.
 - "fuentes_propuestas": Lista de las fuentes del material proporcionado, con nombre, url, tipo, relevancia y fecha_publicacion.
 
 Retorna ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
@@ -98,6 +100,7 @@ Retorna ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
       "declaraciones_borrador": "...",
       "consecuencias_borrador": "...",
       "importancia": "Alta",
+      "meta_description": "...",
       "fuentes_propuestas": [
         { "nombre": "...", "url": "...", "tipo": "...", "relevancia": "Alta", "fecha_publicacion": "..." }
       ]
@@ -197,6 +200,7 @@ function runSpecialistSimulation(
       declaraciones_borrador: declaraciones,
       consecuencias_borrador: consecuencias,
       importancia,
+      meta_description: cleanDesc.substring(0, 140) + (cleanDesc.length > 140 ? '...' : ''),
       fuentes_propuestas: [
         {
           nombre: item.sourceName,

@@ -23,6 +23,7 @@ CREATE TABLE noticias (
     estado_actual TEXT NOT NULL,      -- 6. Estado actual
     declaraciones TEXT NOT NULL,      -- SECCIÓN DE DECLARACIONES
     consecuencias TEXT NOT NULL,      -- POSIBLES CONSECUENCIAS (Proyecciones, Precedentes, Efecto Dominó)
+    meta_description TEXT DEFAULT '' NOT NULL, -- Síntesis corta optimizada para SEO (< 150 caracteres)
     fecha_actualizacion TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
@@ -219,6 +220,7 @@ BEGIN
             estado_actual, 
             declaraciones, 
             consecuencias,
+            meta_description,
             fecha_actualizacion
         ) VALUES (
             p_categoria, 
@@ -233,6 +235,7 @@ BEGIN
             (v_noticia->>'estado_actual')::TEXT, 
             (v_noticia->>'declaraciones')::TEXT, 
             (v_noticia->>'consecuencias')::TEXT,
+            COALESCE((v_noticia->>'meta_description')::TEXT, ''),
             p_fecha_actualizacion
         ) RETURNING id INTO v_noticia_id;
         

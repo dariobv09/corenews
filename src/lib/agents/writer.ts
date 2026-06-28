@@ -64,6 +64,7 @@ Debes retornar UNICAMENTE un objeto JSON válido con la siguiente estructura exa
       "declaraciones": "Declaraciones oficiales de los actores",
       "consecuencias": "Posibles consecuencias (en formato Markdown estructurado en: 1. Proyecciones a futuro, 2. Precedentes Históricos, 3. Efecto Dominó)",
       "importancia": "Alta, Media o Baja",
+      "meta_description": "Breve descripción o síntesis del artículo de menos de 150 caracteres, optimizada para SEO y sin clickbait",
       "fuentes": [
         {
           "nombre": "Nombre de la fuente",
@@ -118,7 +119,8 @@ Genera la redacción periodística final y el informe diario consolidado de la c
           datos_verificables: noticiaData.datos_verificables || '',
           estado_actual:      noticiaData.estado_actual      || '',
           declaraciones:      noticiaData.declaraciones      || '',
-          consecuencias:      noticiaData.consecuencias      || ''
+          consecuencias:      noticiaData.consecuencias      || '',
+          meta_description:   noticiaData.meta_description   || ''
         },
         fuentes: fuentes || []
       };
@@ -161,7 +163,8 @@ function runWriterSimulation(
         estado_actual:      draft.estado_actual_borrador,
         declaraciones:      draft.declaraciones_borrador,
         consecuencias:      draft.consecuencias_borrador,
-        importancia:        draft.importancia
+        importancia:        draft.importancia,
+        meta_description:   draft.meta_description || ''
       },
       fuentes: draft.fuentes_propuestas.map(f => ({
         nombre: f.nombre,

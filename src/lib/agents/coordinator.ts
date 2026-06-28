@@ -285,6 +285,7 @@ export async function executeRewritePipeline(): Promise<{ success: boolean; erro
         declaraciones_borrador: n.declaraciones,
         consecuencias_borrador: n.consecuencias,
         importancia: n.importancia,
+        meta_description: n.meta_description,
         fuentes_propuestas: (n.fuentes || []).map(f => ({
           nombre: f.nombre,
           url: f.url,

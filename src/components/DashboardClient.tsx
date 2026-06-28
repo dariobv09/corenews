@@ -105,19 +105,16 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
 
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  /* ── Polling de estado ─────────────────────────── */
-  useEffect(() => {
-    fetchLogsAndStatus();
-    const iv = setInterval(fetchLogsAndStatus, 2500);
-    return () => clearInterval(iv);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (showLogs && logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, showLogs]);
+  const reloadDashboardData = async () => {
+    try {
+      const newsRes = await fetch(`/api/news?t=${Date.now()}`);
+      if (newsRes.ok) {
+        const data = await newsRes.json();
+        setNoticias(data.noticias || []);
+        setInformes(data.informes || {});
+      }
+    } catch { /* silent */ }
+  };
 
   const fetchLogsAndStatus = async () => {
     try {
@@ -141,16 +138,20 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
     } catch { /* silent */ }
   };
 
-  const reloadDashboardData = async () => {
-    try {
-      const newsRes = await fetch(`/api/news?t=${Date.now()}`);
-      if (newsRes.ok) {
-        const data = await newsRes.json();
-        setNoticias(data.noticias || []);
-        setInformes(data.informes || {});
-      }
-    } catch { /* silent */ }
-  };
+  /* ── Polling de estado ─────────────────────────── */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchLogsAndStatus();
+    const iv = setInterval(fetchLogsAndStatus, 2500);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (showLogs && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, showLogs]);
 
 
 
