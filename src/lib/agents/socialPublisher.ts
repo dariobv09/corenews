@@ -234,8 +234,7 @@ async function generateDallEImage(
       model: "dall-e-3",
       prompt: prompt,
       n: 1,
-      size: "1024x1792",
-      response_format: "url"
+      size: "1024x1792"
     });
 
     const imageUrl = response.data?.[0]?.url;
