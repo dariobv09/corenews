@@ -22,6 +22,11 @@ export const metadata: Metadata = {
     icon: "/icon.jpg",
     apple: "/apple-icon.jpg",
   },
+  verification: {
+    other: {
+      'tiktok-developers-site-verification': ['RcYANHUHyjH3JG6PSrn06sdNVUvh111W'],
+    },
+  },
 };
 
 export default function RootLayout({
