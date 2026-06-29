@@ -2,6 +2,9 @@
 import { NextResponse } from 'next/server';
 import { executeUpdatePipeline, executeRewritePipeline } from '@/lib/agents/coordinator';
 
+export const maxDuration = 300;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   try {
     // Optionally check for CRON authorization or secret headers if coming from Vercel Crons
@@ -25,24 +28,20 @@ export async function POST(request: Request) {
     const mode = searchParams.get('mode');
 
     if (mode === 'rewrite') {
-      // Trigger rewrite pipeline in the background
-      executeRewritePipeline().catch((err) => {
-        console.error('Error en ejecución en segundo plano de la re-redacción de agentes:', err);
-      });
+      await executeRewritePipeline();
 
       return NextResponse.json({
-        status: 'started',
-        message: 'El sistema multiagente ha comenzado la re-redacción de todos los artículos existentes.'
+        status: 'success',
+        message: 'El sistema de re-redacción de todos los artículos existentes se ha completado.'
       });
     } else {
-      // Trigger standard update pipeline in the background
-      executeUpdatePipeline().catch((err) => {
-        console.error('Error en ejecución en segundo plano del pipeline de agentes:', err);
-      });
+      const result = await executeUpdatePipeline();
 
       return NextResponse.json({
-        status: 'started',
-        message: 'El sistema multiagente ha comenzado el proceso de investigación y verificación.'
+        status: result.success ? 'success' : 'failed',
+        message: result.success
+          ? 'El proceso de investigación, verificación y actualización diaria ha concluido con éxito.'
+          : `El proceso de actualización falló: ${result.error}`
       });
     }
   } catch (error: any) {

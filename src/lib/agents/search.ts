@@ -1,6 +1,8 @@
 // Search and Feed Aggregator for Agents
 import { Categoria } from '@/types';
 import Parser from 'rss-parser';
+import { isSupabaseConfigured, supabaseAdmin } from '../supabase';
+import { mockStore } from '../mockStore';
 
 const rssParser = new Parser();
 
@@ -224,6 +226,41 @@ function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, lim
   return scoredItems.slice(0, limit).map((x) => x.item);
 }
 
+async function getProcessedUrls(): Promise<Set<string>> {
+  const processed = new Set<string>();
+  
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('fuentes')
+        .select('url')
+        .not('url', 'is', null);
+      if (!error && data) {
+        data.forEach((f: any) => {
+          if (f.url) processed.add(f.url.trim());
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching processed URLs from Supabase:', err);
+    }
+  }
+  
+  try {
+    const noticias = mockStore.getNoticias();
+    noticias.forEach(n => {
+      if (n.fuentes) {
+        n.fuentes.forEach(f => {
+          if (f.url) processed.add(f.url.trim());
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching processed URLs from mockStore:', err);
+  }
+  
+  return processed;
+}
+
 // Primary function to fetch news items from RSS feeds
 export async function searchCategoryNews(categoria: Categoria, logCallback?: (msg: string) => void): Promise<FeedItem[]> {
   const feedsToFetch = FEEDS[categoria];
@@ -262,14 +299,25 @@ export async function searchCategoryNews(categoria: Categoria, logCallback?: (ms
     }
   }
 
-  // If no items were fetched (offline or RSS CORS block), return default high-quality fallback items
-  if (allItems.length === 0) {
-    logCallback?.(`⚠ No se pudo recuperar información en vivo. Cargando temas semilla predefinidos.`);
+  // Filtrar artículos que ya fueron procesados previamente (evitar duplicados)
+  const processedUrls = await getProcessedUrls();
+  const newItems = allItems.filter(item => {
+    const linkTrim = item.link.trim();
+    if (processedUrls.has(linkTrim)) {
+      logCallback?.(`↷ Omitiendo artículo ya procesado en días previos: "${item.title}"`);
+      return false;
+    }
+    return true;
+  });
+
+  // If no new items were fetched, return default high-quality fallback items
+  if (newItems.length === 0) {
+    logCallback?.(`⚠ No se pudo recuperar información en vivo nueva. Cargando temas semilla predefinidos.`);
     return getFallbackSeedItems(categoria);
   }
 
   // Filter by relevance to limit count to 6 and avoid token overload
-  const filteredItems = filterFeedItemsByRelevance(allItems, categoria, 6);
+  const filteredItems = filterFeedItemsByRelevance(newItems, categoria, 6);
   logCallback?.(`Filtrados por relevancia: Seleccionados ${filteredItems.length} artículos principales para el especialista.`);
   return filteredItems;
 }

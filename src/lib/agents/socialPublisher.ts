@@ -343,11 +343,11 @@ export async function publishTikTokCarousels(
 
   const apiKey = process.env.OPENAI_API_KEY || '';
 
-  for (const cat of categories) {
+  const publishPromises = categories.map(async (cat) => {
     const catNews = noticias.filter(n => n.categoria === cat);
     if (catNews.length === 0) {
       log(`Sin noticias hoy para la categoría ${cat.toUpperCase()}. Omitiendo TikTok.`, 'info');
-      continue;
+      return;
     }
 
     log(`Procesando carrusel para la categoría: ${CATEGORY_LABELS[cat]} (${catNews.length} noticias)...`, 'info');
@@ -434,7 +434,9 @@ export async function publishTikTokCarousels(
     } else {
       log(`⚠ No hay suficientes imágenes válidas para publicar en ${CATEGORY_LABELS[cat]}.`, 'warning');
     }
-  }
+  });
+
+  await Promise.all(publishPromises);
 
   return { success: true };
 }
