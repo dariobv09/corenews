@@ -10,7 +10,7 @@ interface AdBannerProps {
 }
 
 export default function AdBanner({ slot, format = 'auto', responsive = 'true', style }: AdBannerProps) {
-  const clientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+  const clientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || 'ca-pub-7071987980722498';
 
   useEffect(() => {
     if (clientId) {

@@ -49,14 +49,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID && (
-            <Script
-              async
-              src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}`}
-              crossOrigin="anonymous"
-              strategy="afterInteractive"
-            />
-          )}
+          <Script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7071987980722498"
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
           {children}
           <LegalPolicies />
         </ThemeProvider>
