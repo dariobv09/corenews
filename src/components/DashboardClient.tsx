@@ -14,6 +14,7 @@ import {
   Newspaper,
   Zap
 } from 'lucide-react';
+import AdBanner from './AdBanner';
 
 interface DashboardClientProps {
   initialNoticias: Noticia[];
@@ -304,12 +305,17 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filteredNoticias.map((noticia, idx) => (
-              <ArticleCard
-                key={noticia.id}
-                noticia={noticia}
-                index={idx}
-                onClick={() => setSelectedNoticia(noticia)}
-              />
+              <React.Fragment key={noticia.id}>
+                <ArticleCard
+                  noticia={noticia}
+                  index={idx}
+                  onClick={() => setSelectedNoticia(noticia)}
+                />
+                {/* Banner de anuncio manual después del 3er artículo */}
+                {idx === 2 && (
+                  <AdBanner slot="home-feed-mid" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '20px' }} />
+                )}
+              </React.Fragment>
             ))}
           </div>
         )}
@@ -560,6 +566,9 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
         {/* Separador */}
         <div style={{ borderTop: '1px solid var(--border)', marginBottom: 48 }} />
 
+        {/* Banner de anuncio superior en el lector */}
+        <AdBanner slot="reader-top" style={{ marginBottom: 48 }} />
+
         {/* Secciones del artículo */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 52 }}>
           {sections.map(({ key, content }) => {
@@ -596,6 +605,9 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
             );
           })}
         </div>
+
+        {/* Banner de anuncio inferior antes de las consecuencias */}
+        <AdBanner slot="reader-bottom" style={{ marginTop: 48, marginBottom: 24 }} />
 
         {/* ── SECCIÓN DE POSIBLES CONSECUENCIAS ────── */}
         {noticia.consecuencias && (
