@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import LegalPolicies from "@/components/LegalPolicies";
-import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +41,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7071987980722498"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900 dark:bg-[#0a0a0c] dark:text-[#ededf0] transition-colors duration-300">
         <ThemeProvider
           attribute="class"
@@ -49,12 +55,6 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7071987980722498"
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
           {children}
           <LegalPolicies />
         </ThemeProvider>
