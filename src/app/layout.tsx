@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   verification: {
     other: {
-      'tiktok-developers-site-verification': ['6P4J3SQHVjop1g3XRRfYxockBUq85yrq'],
+      'tiktok-developers-site-verification': ['Uw8mtbQGEsE7ZgjURbWbHbTDZDIjcbyB'],
     },
   },
 };
