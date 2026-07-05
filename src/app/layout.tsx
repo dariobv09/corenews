@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import LegalPolicies from "@/components/LegalPolicies";
+// Force Vercel rebuild with latest TikTok signature
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
