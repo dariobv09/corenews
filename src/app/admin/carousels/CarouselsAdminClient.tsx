@@ -29,6 +29,9 @@ const CATEGORY_COLORS: Record<Categoria, string> = {
 export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminClientProps) {
   const [downloadingZip, setDownloadingZip] = useState<Record<string, boolean>>({});
   const [downloadingSingle, setDownloadingSingle] = useState<Record<string, boolean>>({});
+  const [downloadingAllZip, setDownloadingAllZip] = useState(false);
+  const [downloadingAllSeparately, setDownloadingAllSeparately] = useState(false);
+  const [allSeparatelyProgress, setAllSeparatelyProgress] = useState('');
 
   // Group slides by category
   const slidesByCategory: Record<Categoria, ExtendedSlide[]> = {
@@ -117,6 +120,84 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
     }
   };
 
+  /**
+   * Helper to download all generated slides (across all categories) in a single ZIP file
+   */
+  const handleDownloadAllZip = async () => {
+    setDownloadingAllZip(true);
+    try {
+      const zip = new JSZip();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Download all images in parallel
+      const fetchPromises = initialSlides.map(async (slide, idx) => {
+        const response = await fetch(slide.image_url);
+        const blob = await response.blob();
+        const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .substring(0, 30);
+        
+        zip.file(`${slide.categoria}_${idx + 1}_${cleanTitle}.jpg`, blob);
+      });
+
+      await Promise.all(fetchPromises);
+
+      // Generate ZIP
+      const content = await zip.generateAsync({ type: 'blob' });
+      const blobUrl = URL.createObjectURL(content);
+
+      // Trigger download
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `corenews_tiktok_todas_${todayStr}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Error generating all-slides ZIP:', err);
+      alert('Hubo un error al generar el archivo ZIP.');
+    } finally {
+      setDownloadingAllZip(false);
+    }
+  };
+
+  /**
+   * Helper to download all images sequentially to the camera roll / download folder (mobile friendly)
+   */
+  const handleDownloadAllSeparately = async () => {
+    setDownloadingAllSeparately(true);
+    try {
+      for (let i = 0; i < initialSlides.length; i++) {
+        const slide = initialSlides[i];
+        setAllSeparatelyProgress(`${i + 1}/${initialSlides.length}`);
+
+        const response = await fetch(slide.image_url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const filename = `thecorenews_${slide.categoria}_${slide.id}.jpg`;
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+
+        // Delay 350ms to allow mobile browsers to handle multiple files sequentially
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    } catch (err) {
+      console.error('Error downloading images sequentially:', err);
+      alert('Hubo un error durante la descarga masiva.');
+    } finally {
+      setDownloadingAllSeparately(false);
+      setAllSeparatelyProgress('');
+    }
+  };
+
   if (categoriesWithSlides.length === 0) {
     return (
       <div style={{
@@ -138,7 +219,106 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '56px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+      {/* Panel de descargas masivas global */}
+      <div style={{
+        backgroundColor: '#0a0a0c',
+        border: '1px solid #1f1f23',
+        borderRadius: '16px',
+        padding: '24px 32px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '24px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+      }}>
+        <div>
+          <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+            ⚡ Descarga Rápida (Todas las Categorías)
+          </h2>
+          <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '4px 0 0 0' }}>
+            Descarga las {initialSlides.length} fotos de hoy a la vez. Ideal para subir rápidamente a TikTok.
+          </p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          {/* Botón de Descargar Todo Suelto (Recomendado para Móvil) */}
+          <button
+            onClick={handleDownloadAllSeparately}
+            disabled={downloadingAllSeparately || downloadingAllZip}
+            style={{
+              backgroundColor: '#1f1f23',
+              color: '#ffffff',
+              border: '1px solid #27272a',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: (downloadingAllSeparately || downloadingAllZip) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {downloadingAllSeparately ? (
+              <>
+                <span className="spinner" style={{
+                  display: 'inline-block',
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid #ffffff',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+                Guardando ({allSeparatelyProgress})...
+              </>
+            ) : (
+              '📱 Guardar en Galería (Fotos Sueltas)'
+            )}
+          </button>
+
+          {/* Botón de Descargar Todo como un ZIP */}
+          <button
+            onClick={handleDownloadAllZip}
+            disabled={downloadingAllSeparately || downloadingAllZip}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#000000',
+              border: 'none',
+              padding: '12px 24px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: (downloadingAllSeparately || downloadingAllZip) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {downloadingAllZip ? (
+              <>
+                <span className="spinner" style={{
+                  display: 'inline-block',
+                  width: '12px',
+                  height: '12px',
+                  border: '2px solid #000000',
+                  borderTop: '2px solid transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite'
+                }} />
+                Creando ZIP...
+              </>
+            ) : (
+              '📦 Descargar Todo (.ZIP)'
+            )}
+          </button>
+        </div>
+      </div>
+
       {categoriesWithSlides.map((cat) => {
         const categorySlides = slidesByCategory[cat];
         const isZipLoading = downloadingZip[cat];

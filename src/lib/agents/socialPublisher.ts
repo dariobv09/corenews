@@ -195,12 +195,101 @@ function noticiaTitleTruncated(title: string): string {
 }
 
 /**
+ * Cleans up slide records and files from the previous days
+ */
+async function cleanupPreviousDaySlides(log?: (m: string) => void) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStart = `${todayStr}T00:00:00Z`;
+
+  log?.('[SocialPublisher] Iniciando limpieza de diapositivas del día anterior...');
+
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      // 1. Fetch slides older than today
+      const { data: oldSlides, error: fetchError } = await supabaseAdmin
+        .from('carousel_slides')
+        .select('image_url')
+        .lt('created_at', todayStart);
+
+      if (fetchError) throw fetchError;
+
+      if (oldSlides && oldSlides.length > 0) {
+        log?.(`[SocialPublisher] Se encontraron ${oldSlides.length} diapositivas antiguas para eliminar.`);
+        
+        // Extract filenames from URLs
+        const filesToRemove: string[] = [];
+        oldSlides.forEach((s: any) => {
+          const urlParts = s.image_url.split('/');
+          const fileName = urlParts[urlParts.length - 1];
+          if (fileName && s.image_url.includes('tiktok-carousel')) {
+            filesToRemove.push(fileName);
+          }
+        });
+
+        if (filesToRemove.length > 0) {
+          log?.(`[SocialPublisher] Eliminando ${filesToRemove.length} archivos de Supabase Storage...`);
+          const { error: storageError } = await supabaseAdmin.storage
+            .from('tiktok-carousel')
+            .remove(filesToRemove);
+          if (storageError) throw storageError;
+          log?.('[SocialPublisher] ✓ Archivos de Storage eliminados con éxito.');
+        }
+
+        // 2. Delete database records
+        const { error: dbError } = await supabaseAdmin
+          .from('carousel_slides')
+          .delete()
+          .lt('created_at', todayStart);
+        if (dbError) throw dbError;
+        log?.('[SocialPublisher] ✓ Registros de base de datos antiguos eliminados con éxito.');
+      } else {
+        log?.('[SocialPublisher] No se encontraron diapositivas de días anteriores en Supabase.');
+      }
+    } catch (err: any) {
+      log?.(`[SocialPublisher] ⚠ Error durante la limpieza en Supabase: ${err.message || err}`);
+    }
+  } else {
+    // Local fallback cleanup
+    try {
+      const slides = mockStore.getCarouselSlides();
+      const oldSlides = slides.filter(s => new Date(s.created_at).getTime() < new Date(todayStart).getTime());
+      
+      if (oldSlides.length > 0) {
+        log?.(`[SocialPublisher] Eliminando ${oldSlides.length} diapositivas locales antiguas...`);
+        
+        oldSlides.forEach(s => {
+          const urlParts = s.image_url.split('/');
+          const fileName = urlParts[urlParts.length - 1];
+          if (fileName) {
+            const filePath = path.join(process.cwd(), 'public', 'carousel', fileName);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          }
+        });
+
+        const thresholdTime = new Date(todayStart).getTime();
+        mockStore.deleteOldCarouselSlides(thresholdTime);
+        log?.('[SocialPublisher] ✓ Limpieza local finalizada con éxito.');
+      } else {
+        log?.('[SocialPublisher] No se encontraron diapositivas de días anteriores en mockStore.');
+      }
+    } catch (err: any) {
+      log?.(`[SocialPublisher] ⚠ Error durante la limpieza local: ${err.message || err}`);
+    }
+  }
+}
+
+/**
  * Main entry point called by the Coordinator
  */
 export async function publishTikTokCarousels(
   log: (msg: string, type?: 'info' | 'warning' | 'success' | 'error') => void
 ): Promise<{ success: boolean; error?: string }> {
   log('[SocialPublisher] Iniciando pipeline de imágenes individuales por noticia para TikTok...', 'info');
+
+  // Trigger cleanup of previous day slides
+  await cleanupPreviousDaySlides((m) => log(m, 'info'));
 
   const todayStr = new Date().toISOString().split('T')[0];
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -216,6 +305,7 @@ export async function publishTikTokCarousels(
         .gte('fecha_actualizacion', oneDayAgo);
       if (error) throw error;
       noticias = (data || []) as Noticia[];
+
     } catch (err: any) {
       log(`[SocialPublisher] ⚠ Error al leer de Supabase: ${err.message || err}. Usando fallback local.`, 'warning');
       noticias = mockStore.getNoticias().filter(n => new Date(n.fecha_actualizacion).getTime() >= new Date(oneDayAgo).getTime());
