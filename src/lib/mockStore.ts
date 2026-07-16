@@ -1,5 +1,6 @@
 // Mock Store for local fallback development (Rediseño Editorial)
-import { Noticia, Fuente, Informe, Categoria } from '@/types';
+import { Noticia, Fuente, Informe, Categoria, CarouselSlide } from '@/types';
+
 
 // Load Node modules dynamically on the server to prevent browser bundling issues
 let fsModule: any = null;
@@ -441,6 +442,7 @@ const globalForStore = globalThis as unknown as {
   noticias: Noticia[];
   fuentes: Fuente[];
   informes: Informe[];
+  carouselSlides: CarouselSlide[];
 };
 
 const DATA_FILE_PATH = () => {
@@ -458,7 +460,8 @@ function saveToLocalFile() {
       const data = {
         noticias: globalForStore.noticias,
         fuentes: globalForStore.fuentes,
-        informes: globalForStore.informes
+        informes: globalForStore.informes,
+        carouselSlides: globalForStore.carouselSlides || []
       };
       fsModule.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -478,6 +481,7 @@ function loadFromLocalFile() {
         globalForStore.noticias = data.noticias;
         globalForStore.fuentes = data.fuentes;
         globalForStore.informes = data.informes;
+        globalForStore.carouselSlides = data.carouselSlides || [];
         return true;
       }
     } catch (err) {
@@ -488,12 +492,13 @@ function loadFromLocalFile() {
 }
 
 // Initialize
-if (!globalForStore.noticias || !globalForStore.fuentes || !globalForStore.informes) {
+if (!globalForStore.noticias || !globalForStore.fuentes || !globalForStore.informes || !globalForStore.carouselSlides) {
   const loaded = loadFromLocalFile();
   if (!loaded) {
     globalForStore.noticias = initialNoticias;
     globalForStore.fuentes = initialFuentes;
     globalForStore.informes = initialInformes;
+    globalForStore.carouselSlides = [];
     saveToLocalFile();
   }
 }
@@ -597,5 +602,41 @@ export const mockStore = {
       (i) => i.categoria !== categoria || new Date(i.fecha_generacion).getTime() >= thresholdTime
     );
     saveToLocalFile();
+  },
+
+  getCarouselSlides(categoria?: Categoria): CarouselSlide[] {
+    const list = globalForStore.carouselSlides || [];
+    const sorted = [...list].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (categoria) {
+      return sorted.filter((s) => s.categoria === categoria);
+    }
+    return sorted;
+  },
+
+  addCarouselSlide(slide: Omit<CarouselSlide, 'id' | 'created_at'>): CarouselSlide {
+    if (!globalForStore.carouselSlides) {
+      globalForStore.carouselSlides = [];
+    }
+    
+    // Generate simple UUID-like string for local fallback
+    const id = 'slide_' + Math.random().toString(36).substring(2, 15);
+    const newSlide: CarouselSlide = {
+      ...slide,
+      id,
+      created_at: new Date().toISOString()
+    };
+    
+    globalForStore.carouselSlides.push(newSlide);
+    saveToLocalFile();
+    return newSlide;
+  },
+
+  deleteOldCarouselSlides(thresholdTime: number) {
+    if (!globalForStore.carouselSlides) return;
+    globalForStore.carouselSlides = globalForStore.carouselSlides.filter(
+      (s) => new Date(s.created_at).getTime() >= thresholdTime
+    );
+    saveToLocalFile();
   }
 };
+

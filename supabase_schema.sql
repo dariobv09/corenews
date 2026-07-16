@@ -268,3 +268,19 @@ BEGIN
       
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Table: carousel_slides
+CREATE TABLE IF NOT EXISTS carousel_slides (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    noticia_id UUID REFERENCES noticias(id) ON DELETE CASCADE,
+    categoria TEXT NOT NULL CHECK (categoria IN ('ia', 'tecnologia', 'economia', 'politica')),
+    slide_order INT DEFAULT 0 NOT NULL,
+    image_url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+
+-- RLS
+ALTER TABLE carousel_slides ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read access to carousel_slides" ON carousel_slides FOR SELECT USING (true);
+CREATE POLICY "Allow service role full access to carousel_slides" ON carousel_slides FOR ALL TO service_role USING (true) WITH CHECK (true);
+

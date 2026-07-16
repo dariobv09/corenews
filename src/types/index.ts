@@ -45,3 +45,13 @@ export interface AgentLog {
   message: string;
   type: 'info' | 'warning' | 'success' | 'error';
 }
+
+export interface CarouselSlide {
+  id: string;
+  noticia_id: string | null;
+  categoria: Categoria;
+  slide_order: number;
+  image_url: string;
+  created_at: string;
+}
+
