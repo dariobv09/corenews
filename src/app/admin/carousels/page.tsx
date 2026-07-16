@@ -4,6 +4,14 @@ import { isSupabaseConfigured, supabaseAdmin } from '@/lib/supabase';
 import { mockStore } from '@/lib/mockStore';
 import { Categoria, CarouselSlide, Noticia } from '@/types';
 import CarouselsAdminClient from './CarouselsAdminClient';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Core TikTok - Panel de Control',
+  description: 'Gestión de diapositivas de noticias de TikTok',
+  manifest: '/manifest-admin.json'
+};
+
 
 interface ExtendedSlide extends CarouselSlide {
   noticia?: Noticia | null;

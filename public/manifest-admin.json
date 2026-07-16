@@ -1,0 +1,24 @@
+{
+  "name": "Core TikTok",
+  "short_name": "Core TikTok",
+  "description": "Gestión de diapositivas de TikTok de TheCoreNews",
+  "start_url": "/admin/carousels",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
