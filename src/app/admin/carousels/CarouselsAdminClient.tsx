@@ -276,7 +276,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
                 Guardando ({allSeparatelyProgress})...
               </>
             ) : (
-              '📱 Guardar en Galería (Fotos Sueltas)'
+              '📱 Guardar todas las fotos en la galería'
             )}
           </button>
 
