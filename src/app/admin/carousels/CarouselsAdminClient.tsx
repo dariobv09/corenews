@@ -164,11 +164,36 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
   };
 
   /**
-   * Helper to download all images sequentially to the camera roll / download folder (mobile friendly)
+   * Helper to download all images to the camera roll / gallery (mobile friendly)
    */
   const handleDownloadAllSeparately = async () => {
     setDownloadingAllSeparately(true);
+    setAllSeparatelyProgress('Preparando...');
     try {
+      // 1. Download all images in parallel first to check or use Web Share API
+      const fetchPromises = initialSlides.map(async (slide, idx) => {
+        const response = await fetch(slide.image_url);
+        const blob = await response.blob();
+        return new File(
+          [blob],
+          `corenews_${slide.categoria}_${idx + 1}.jpg`,
+          { type: 'image/jpeg' }
+        );
+      });
+
+      const filesList = await Promise.all(fetchPromises);
+
+      // 2. Try to use Web Share API (native share sheet on iOS)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: filesList })) {
+        await navigator.share({
+          files: filesList,
+          title: 'Fotos Core News',
+          text: 'Diapositivas de TikTok de hoy'
+        });
+        return;
+      }
+
+      // 3. Fallback: Sequential downloads as separate files if Web Share is not supported
       for (let i = 0; i < initialSlides.length; i++) {
         const slide = initialSlides[i];
         setAllSeparatelyProgress(`${i + 1}/${initialSlides.length}`);
@@ -190,8 +215,8 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
         await new Promise((resolve) => setTimeout(resolve, 350));
       }
     } catch (err) {
-      console.error('Error downloading images sequentially:', err);
-      alert('Hubo un error durante la descarga masiva.');
+      console.error('Error in batch photo saving:', err);
+      // Fallback alerts are ignored during share cancellations
     } finally {
       setDownloadingAllSeparately(false);
       setAllSeparatelyProgress('');
