@@ -137,8 +137,13 @@ export default async function CarouselsAdminPage() {
     );
   }
 
-  // 2. Fetch slides generated in the last 24 hours
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // 2. Fetch slides generated today (current calendar day in Spain/Madrid timezone)
+  const now = new Date();
+  const madridDateStr = now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const madridTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+  const diffMs = madridTime.getTime() - now.getTime();
+  const todayStart = new Date(new Date(`${madridDateStr}T00:00:00`).getTime() - diffMs).toISOString();
+
   let slides: ExtendedSlide[] = [];
 
   if (isSupabaseConfigured() && supabaseAdmin) {
@@ -146,7 +151,7 @@ export default async function CarouselsAdminPage() {
       const { data, error } = await supabaseAdmin
         .from('carousel_slides')
         .select('*, noticias(*)')
-        .gte('created_at', oneDayAgo)
+        .gte('created_at', todayStart)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -161,12 +166,12 @@ export default async function CarouselsAdminPage() {
         noticia: s.noticias as Noticia | null
       }));
     } catch (err) {
-      console.error('Error fetching slides from Supabase:', err);
+      console.error('Error fetching today\'s slides from Supabase:', err);
     }
   } else {
     // Fallback Mock Store
     const localSlides = mockStore.getCarouselSlides().filter(
-      (s) => new Date(s.created_at).getTime() >= Date.now() - 24 * 60 * 60 * 1000
+      (s) => new Date(s.created_at).getTime() >= new Date(todayStart).getTime()
     );
     slides = localSlides.map((s) => {
       const newsItem = s.noticia_id ? mockStore.getNoticias().find(n => n.id === s.noticia_id) : null;
