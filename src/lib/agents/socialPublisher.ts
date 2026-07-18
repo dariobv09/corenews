@@ -325,10 +325,16 @@ export async function publishTikTokCarousels(
   // Asegurar bucket de almacenamiento
   await ensureStorageBucket((m) => log(m, 'info'));
 
-  // 2. Process all news in parallel to optimize execution time and avoid serverless timeouts
-  const promises = noticias.map(async (noticia) => {
+  // 2. Process all news sequentially to respect OpenAI DALL-E 3 rate limits and ensure unique images
+  for (let i = 0; i < noticias.length; i++) {
+    const noticia = noticias[i];
     try {
-      log(`[SocialPublisher] Procesando noticia: "${noticiaTitleTruncated(noticia.titulo)}"`, 'info');
+      log(`[SocialPublisher] Procesando noticia (${i + 1}/${noticias.length}): "${noticiaTitleTruncated(noticia.titulo)}"`, 'info');
+
+      // Add a small 2.5s delay before generating images (except for the first one) to respect API rate limits
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
 
       // Step A: Generate/Scrape Background Image
       const bgBuffer = await getBgImageForNews(noticia, (m) => log(m, 'info'));
@@ -352,9 +358,7 @@ export async function publishTikTokCarousels(
     } catch (err: any) {
       log(`[SocialPublisher] ❌ Error procesando noticia "${noticiaTitleTruncated(noticia.titulo)}": ${err.message || err}`, 'error');
     }
-  });
-
-  await Promise.all(promises);
+  }
 
   log('[SocialPublisher] ✓ Finalizada la generación de diapositivas de noticias.', 'success');
   return { success: true };

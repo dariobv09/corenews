@@ -2,11 +2,35 @@ import OpenAI from 'openai';
 import { Noticia, Categoria } from '@/types';
 
 // Fallback images (premium high-resolution photos on Unsplash)
-const CATEGORY_FALLBACKS: Record<Categoria, string> = {
-  ia: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1024&auto=format&fit=crop&q=80',
-  tecnologia: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1024&auto=format&fit=crop&q=80',
-  economia: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=1024&auto=format&fit=crop&q=80',
-  politica: 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1024&auto=format&fit=crop&q=80'
+const CATEGORY_FALLBACKS: Record<Categoria, string[]> = {
+  ia: [
+    'https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1507146426996-ef05306b995a?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1024&auto=format&fit=crop&q=80'
+  ],
+  tecnologia: [
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1024&auto=format&fit=crop&q=80'
+  ],
+  economia: [
+    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1024&auto=format&fit=crop&q=80'
+  ],
+  politica: [
+    'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=1024&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1024&auto=format&fit=crop&q=80'
+  ]
 };
 
 /**
@@ -217,7 +241,8 @@ export async function getBgImageForNews(
 
   // Fallback 3: Imagen estática curada por categoría
   log?.(`[MediaScraper] [Fallback] Usando imagen estática para la categoría: ${noticia.categoria.toUpperCase()}`);
-  const fallbackUrl = CATEGORY_FALLBACKS[noticia.categoria];
+  const fallbacks = CATEGORY_FALLBACKS[noticia.categoria];
+  const fallbackUrl = fallbacks[Math.floor(Math.random() * fallbacks.length)];
   try {
     return await downloadImage(fallbackUrl, log);
   } catch (err: any) {
