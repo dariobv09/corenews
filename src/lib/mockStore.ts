@@ -443,6 +443,8 @@ const globalForStore = globalThis as unknown as {
   fuentes: Fuente[];
   informes: Informe[];
   carouselSlides: CarouselSlide[];
+  pageViewsDaily: Record<string, { views_count: number; unique_visitors: number }>;
+  activeSessions: Record<string, string>;
 };
 
 const DATA_FILE_PATH = () => {
@@ -461,7 +463,9 @@ function saveToLocalFile() {
         noticias: globalForStore.noticias,
         fuentes: globalForStore.fuentes,
         informes: globalForStore.informes,
-        carouselSlides: globalForStore.carouselSlides || []
+        carouselSlides: globalForStore.carouselSlides || [],
+        pageViewsDaily: globalForStore.pageViewsDaily || {},
+        activeSessions: globalForStore.activeSessions || {}
       };
       fsModule.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
@@ -482,6 +486,8 @@ function loadFromLocalFile() {
         globalForStore.fuentes = data.fuentes;
         globalForStore.informes = data.informes;
         globalForStore.carouselSlides = data.carouselSlides || [];
+        globalForStore.pageViewsDaily = data.pageViewsDaily || {};
+        globalForStore.activeSessions = data.activeSessions || {};
         return true;
       }
     } catch (err) {
@@ -492,13 +498,15 @@ function loadFromLocalFile() {
 }
 
 // Initialize
-if (!globalForStore.noticias || !globalForStore.fuentes || !globalForStore.informes || !globalForStore.carouselSlides) {
+if (!globalForStore.noticias || !globalForStore.fuentes || !globalForStore.informes || !globalForStore.carouselSlides || !globalForStore.pageViewsDaily || !globalForStore.activeSessions) {
   const loaded = loadFromLocalFile();
   if (!loaded) {
     globalForStore.noticias = initialNoticias;
     globalForStore.fuentes = initialFuentes;
     globalForStore.informes = initialInformes;
     globalForStore.carouselSlides = [];
+    globalForStore.pageViewsDaily = {};
+    globalForStore.activeSessions = {};
     saveToLocalFile();
   }
 }
@@ -637,6 +645,59 @@ export const mockStore = {
       (s) => new Date(s.created_at).getTime() >= thresholdTime
     );
     saveToLocalFile();
+  },
+
+  trackVisit(dateStr: string, sessionId: string, isNewVisitor: boolean) {
+    if (!globalForStore.pageViewsDaily) {
+      globalForStore.pageViewsDaily = {};
+    }
+    if (!globalForStore.activeSessions) {
+      globalForStore.activeSessions = {};
+    }
+
+    // 1. Update page views
+    if (!globalForStore.pageViewsDaily[dateStr]) {
+      globalForStore.pageViewsDaily[dateStr] = { views_count: 0, unique_visitors: 0 };
+    }
+    globalForStore.pageViewsDaily[dateStr].views_count += 1;
+    if (isNewVisitor) {
+      globalForStore.pageViewsDaily[dateStr].unique_visitors += 1;
+    }
+
+    // 2. Update active session
+    globalForStore.activeSessions[sessionId] = new Date().toISOString();
+
+    // 3. Clean up sessions older than 5 minutes
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    for (const [id, lastActive] of Object.entries(globalForStore.activeSessions)) {
+      if (new Date(lastActive).getTime() < fiveMinAgo) {
+        delete globalForStore.activeSessions[id];
+      }
+    }
+
+    saveToLocalFile();
+  },
+
+  getAnalyticsData() {
+    const pageViews = globalForStore.pageViewsDaily || {};
+    const activeSessions = globalForStore.activeSessions || {};
+
+    // Cleanup active sessions
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    let activeCount = 0;
+    const cleanedActiveSessions: Record<string, string> = {};
+    for (const [id, lastActive] of Object.entries(activeSessions)) {
+      if (new Date(lastActive).getTime() >= fiveMinAgo) {
+        activeCount++;
+        cleanedActiveSessions[id] = lastActive;
+      }
+    }
+    globalForStore.activeSessions = cleanedActiveSessions;
+
+    return {
+      pageViews,
+      activeUsers: activeCount
+    };
   }
 };
 
