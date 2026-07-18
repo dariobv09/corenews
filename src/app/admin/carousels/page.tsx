@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   manifest: '/manifest-admin.json'
 };
 
+export const dynamic = 'force-dynamic';
+
 
 interface ExtendedSlide extends CarouselSlide {
   noticia?: Noticia | null;

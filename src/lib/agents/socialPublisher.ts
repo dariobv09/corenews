@@ -198,18 +198,18 @@ function noticiaTitleTruncated(title: string): string {
  * Cleans up slide records and files from the previous days
  */
 async function cleanupPreviousDaySlides(log?: (m: string) => void) {
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayStart = `${todayStr}T00:00:00Z`;
+  // Use a relative 48-hour threshold to avoid timezone offset or midnight race conditions
+  const threshold = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  log?.('[SocialPublisher] Iniciando limpieza de diapositivas del día anterior...');
+  log?.('[SocialPublisher] Iniciando limpieza de diapositivas de más de 48 horas...');
 
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      // 1. Fetch slides older than today
+      // 1. Fetch slides older than the threshold
       const { data: oldSlides, error: fetchError } = await supabaseAdmin
         .from('carousel_slides')
         .select('image_url')
-        .lt('created_at', todayStart);
+        .lt('created_at', threshold);
 
       if (fetchError) throw fetchError;
 
@@ -239,7 +239,7 @@ async function cleanupPreviousDaySlides(log?: (m: string) => void) {
         const { error: dbError } = await supabaseAdmin
           .from('carousel_slides')
           .delete()
-          .lt('created_at', todayStart);
+          .lt('created_at', threshold);
         if (dbError) throw dbError;
         log?.('[SocialPublisher] ✓ Registros de base de datos antiguos eliminados con éxito.');
       } else {
@@ -252,7 +252,7 @@ async function cleanupPreviousDaySlides(log?: (m: string) => void) {
     // Local fallback cleanup
     try {
       const slides = mockStore.getCarouselSlides();
-      const oldSlides = slides.filter(s => new Date(s.created_at).getTime() < new Date(todayStart).getTime());
+      const oldSlides = slides.filter(s => new Date(s.created_at).getTime() < new Date(threshold).getTime());
       
       if (oldSlides.length > 0) {
         log?.(`[SocialPublisher] Eliminando ${oldSlides.length} diapositivas locales antiguas...`);
@@ -268,7 +268,7 @@ async function cleanupPreviousDaySlides(log?: (m: string) => void) {
           }
         });
 
-        const thresholdTime = new Date(todayStart).getTime();
+        const thresholdTime = new Date(threshold).getTime();
         mockStore.deleteOldCarouselSlides(thresholdTime);
         log?.('[SocialPublisher] ✓ Limpieza local finalizada con éxito.');
       } else {
