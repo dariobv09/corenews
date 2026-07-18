@@ -18,6 +18,10 @@ export async function GET(
 
       if (error) {
         console.error(`Supabase storage download error for ${filename}:`, error);
+        return new Response(JSON.stringify(error), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
       } else if (data) {
         const buffer = Buffer.from(await data.arrayBuffer());
         return new Response(buffer, {
