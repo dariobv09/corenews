@@ -33,6 +33,15 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
   const [downloadingAllSeparately, setDownloadingAllSeparately] = useState(false);
   const [allSeparatelyProgress, setAllSeparatelyProgress] = useState('');
 
+  const getProxyUrl = (url: string) => {
+    if (url && url.startsWith('http')) {
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1];
+      return `/api/carousel-image/${filename}`;
+    }
+    return url;
+  };
+
   // Group slides by category
   const slidesByCategory: Record<Categoria, ExtendedSlide[]> = {
     ia: [],
@@ -55,7 +64,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
   const handleDownloadSingle = async (slide: ExtendedSlide) => {
     setDownloadingSingle(prev => ({ ...prev, [slide.id]: true }));
     try {
-      const response = await fetch(slide.image_url);
+      const response = await fetch(getProxyUrl(slide.image_url));
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       
@@ -88,7 +97,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
 
       // Download all images in parallel
       const fetchPromises = categorySlides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -131,7 +140,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
 
       // Download all images in parallel
       const fetchPromises = initialSlides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -172,7 +181,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
     try {
       // 1. Download all images in parallel first to check or use Web Share API
       const fetchPromises = initialSlides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         return new File(
           [blob],
@@ -198,7 +207,7 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
         const slide = initialSlides[i];
         setAllSeparatelyProgress(`${i + 1}/${initialSlides.length}`);
 
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         
@@ -457,19 +466,18 @@ export default function CarouselsAdminClient({ initialSlides }: CarouselsAdminCl
                   }}>
                     {/* Image Preview Container */}
                     <div style={{
-                      position: 'relative',
                       width: '100%',
-                      paddingTop: '177.77%', // 16:9 vertical aspect ratio (1792/1024)
+                      aspectRatio: '9/16',
                       backgroundColor: '#000000',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      position: 'relative',
                       cursor: 'pointer'
                     }}>
                       <img
-                        src={slide.image_url}
+                        src={getProxyUrl(slide.image_url)}
                         alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
                         style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover'
