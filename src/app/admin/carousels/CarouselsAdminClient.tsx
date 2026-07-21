@@ -39,6 +39,21 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [generatingSlide, setGeneratingSlide] = useState<Record<string, boolean>>({});
   const [generatingAll, setGeneratingAll] = useState(false);
 
+  const getProxyUrl = (url: string) => {
+    if (url && url.startsWith('http')) {
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1];
+      const queryIndex = filename.indexOf('?');
+      if (queryIndex !== -1) {
+        const cleanName = filename.substring(0, queryIndex);
+        const query = filename.substring(queryIndex);
+        return `/api/carousel-image/${cleanName}${query}`;
+      }
+      return `/api/carousel-image/${filename}`;
+    }
+    return url;
+  };
+
   // Group slides by category dynamically from current state
   const slidesByCategory: Record<Categoria, ExtendedSlide[]> = {
     ia: [],
@@ -123,7 +138,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const handleDownloadSingle = async (slide: ExtendedSlide) => {
     setDownloadingSingle(prev => ({ ...prev, [slide.id]: true }));
     try {
-      const response = await fetch(slide.image_url);
+      const response = await fetch(getProxyUrl(slide.image_url));
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       
@@ -138,7 +153,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     } catch (err) {
       console.error('Error downloading single image:', err);
       // Fallback
-      window.open(slide.image_url, '_blank');
+      window.open(getProxyUrl(slide.image_url), '_blank');
     } finally {
       setDownloadingSingle(prev => ({ ...prev, [slide.id]: false }));
     }
@@ -154,9 +169,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       const categorySlides = slidesByCategory[categoria];
       const todayStr = new Date().toISOString().split('T')[0];
 
-      // Download all images in parallel
       const fetchPromises = categorySlides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -197,9 +211,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       const zip = new JSZip();
       const todayStr = new Date().toISOString().split('T')[0];
 
-      // Download all images in parallel
       const fetchPromises = slides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -238,9 +251,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     setDownloadingAllSeparately(true);
     setAllSeparatelyProgress('Preparando...');
     try {
-      // 1. Download all images in parallel first
       const fetchPromises = slides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         return new File(
           [blob],
@@ -266,7 +278,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         const slide = slides[i];
         setAllSeparatelyProgress(`${i + 1}/${slides.length}`);
 
-        const response = await fetch(slide.image_url);
+        const response = await fetch(getProxyUrl(slide.image_url));
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         
@@ -655,7 +667,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                             </div>
                           ) : null}
                           <img
-                            src={slide.image_url}
+                            src={getProxyUrl(`${slide.image_url}?t=${new Date(slide.created_at).getTime()}`)}
                             alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
                             style={{
                               width: '100%',
