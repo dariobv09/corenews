@@ -62,8 +62,10 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     politica: []
   };
 
-  slides.forEach((slide) => {
-    slidesByCategory[slide.categoria].push(slide);
+  (slides || []).forEach((slide) => {
+    if (slide && slide.categoria && slidesByCategory[slide.categoria]) {
+      slidesByCategory[slide.categoria].push(slide);
+    }
   });
 
   const categoriesWithSlides = (Object.keys(slidesByCategory) as Categoria[]).filter(
@@ -71,8 +73,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   );
 
   // Identify which today's news items are missing a slide
-  const newsMissingSlides = todayNoticias.filter(
-    (noticia) => !slides.some((s) => s.noticia_id === noticia.id)
+  const newsMissingSlides = (todayNoticias || []).filter(
+    (noticia) => noticia && noticia.id && !slides.some((s) => s.noticia_id === noticia.id)
   );
 
   /**
@@ -384,13 +386,13 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                         fontSize: '10px',
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        backgroundColor: CATEGORY_COLORS[noticia.categoria] + '20',
-                        color: CATEGORY_COLORS[noticia.categoria],
+                        backgroundColor: (CATEGORY_COLORS[noticia.categoria] || '#71717a') + '20',
+                        color: CATEGORY_COLORS[noticia.categoria] || '#71717a',
                         padding: '2px 8px',
                         borderRadius: '4px',
                         letterSpacing: '0.05em'
                       }}>
-                        {CATEGORY_LABELS[noticia.categoria]}
+                        {CATEGORY_LABELS[noticia.categoria] || 'General'}
                       </span>
                     </div>
                     <h3 style={{ fontSize: '13.5px', fontWeight: 700, margin: 0, color: '#ffffff', lineHeight: 1.4 }}>
@@ -667,7 +669,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                             </div>
                           ) : null}
                           <img
-                            src={getProxyUrl(`${slide.image_url}?t=${new Date(slide.created_at).getTime()}`)}
+                            src={getProxyUrl(`${slide.image_url}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`)}
                             alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
                             style={{
                               width: '100%',
