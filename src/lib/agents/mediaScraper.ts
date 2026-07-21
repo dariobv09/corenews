@@ -191,6 +191,75 @@ async function searchGoogle(query: string, log?: (m: string) => void): Promise<B
 }
 
 /**
+ * Extracts keywords offline from the news title (fallback when OpenAI is unavailable/billing-limited)
+ */
+function extractKeywordsOffline(title: string): string {
+  const stopWords = new Set([
+    'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'y', 'o', 'e', 'u', 'en', 'a', 'para', 'por', 'con', 'sin', 'sobre', 'tras', 'durante', 'mediante', 'que', 'se', 'su', 'sus', 'al', 'lo', 'como', 'mas', 'pero', 'este', 'esta', 'estos', 'estas', 'del', 'al', 'sus', 'sus', 'como', 'para', 'una', 'con', 'las', 'los', 'sobre', 'se', 'contra', 'entre', 'hacia', 'hasta', 'desde'
+  ]);
+  
+  // Clean and split title
+  const words = title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "")
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !stopWords.has(w));
+  
+  // Return the first 2 cleaned words (broader search matches)
+  return words.slice(0, 2).join(' ');
+}
+
+/**
+ * Searches Wikimedia Commons for a query (keyless, completely free public images)
+ */
+async function searchWikimedia(query: string, log?: (m: string) => void): Promise<Buffer | null> {
+  try {
+    log?.(`[MediaScraper] [Wikimedia Fallback] Buscando en Wikimedia Commons para: "${query}"...`);
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=8&prop=imageinfo&iiprop=url&format=json&origin=*`;
+    const res = await fetch(searchUrl);
+    if (!res.ok) {
+      throw new Error(`Wikimedia responded with status ${res.status}`);
+    }
+
+    const data = await res.json();
+    const pages = data.query?.pages || {};
+    const urls: string[] = [];
+
+    for (const pageId of Object.keys(pages)) {
+      const page = pages[pageId];
+      const imageUrl = page.imageinfo?.[0]?.url;
+      // Accept only common image extensions
+      if (imageUrl && (imageUrl.endsWith('.png') || imageUrl.endsWith('.jpg') || imageUrl.endsWith('.jpeg') || imageUrl.endsWith('.webp'))) {
+        urls.push(imageUrl);
+      }
+    }
+
+    if (urls.length === 0) {
+      log?.(`[MediaScraper] [Wikimedia Fallback] No se encontraron imágenes en Wikimedia para: "${query}"`);
+      return null;
+    }
+
+    // Return the first working image URL
+    for (const imgUrl of urls) {
+      try {
+        const testRes = await fetch(imgUrl, { method: 'HEAD' });
+        if (testRes.ok) {
+          log?.(`[MediaScraper] [Wikimedia Fallback] ✓ Encontrada imagen válida: ${imgUrl}`);
+          return await downloadImage(imgUrl, log);
+        }
+      } catch (e) {
+        // Skip and try next
+      }
+    }
+  } catch (err: any) {
+    log?.(`[MediaScraper] [Wikimedia Fallback] ⚠ Error en búsqueda de Wikimedia: ${err.message || err}`);
+  }
+  return null;
+}
+
+/**
  * Main entry point: Generates or scrapes a background image for a given news item
  */
 export async function getBgImageForNews(
@@ -204,7 +273,7 @@ export async function getBgImageForNews(
     openai = new OpenAI({ apiKey });
   }
 
-  // Intentar DALL-E 3 como método principal
+  // 1. Intentar DALL-E 3
   if (openai) {
     try {
       const visualPrompt = await refineDallEPrompt(noticia, openai, log);
@@ -224,22 +293,36 @@ export async function getBgImageForNews(
         return await downloadImage(imageUrl, log);
       }
     } catch (err: any) {
-      log?.(`[MediaScraper] [DALL-E 3] ⚠ Falló la generación. Detalle: ${err.message || err}. Iniciando cascada de fallbacks...`);
+      log?.(`[MediaScraper] [DALL-E 3] ⚠ Falló la generación. Detalle: ${err.message || err}.`);
     }
   }
 
-  // Fallback 1: Buscar en Unsplash
+  // 2. Extraer palabras clave para la búsqueda de imágenes
+  let keywords = '';
   if (openai) {
-    const keywords = await extractKeywords(noticia, openai, log);
+    keywords = await extractKeywords(noticia, openai, log);
+  } else {
+    keywords = extractKeywordsOffline(noticia.titulo);
+    log?.(`[MediaScraper] [Offline] Palabras clave extraídas sin IA: "${keywords}"`);
+  }
+
+  // 3. Fallback 1: Buscar en Unsplash API (si está configurada)
+  if (process.env.UNSPLASH_ACCESS_KEY) {
     const unsplashBuffer = await searchUnsplash(keywords, log);
     if (unsplashBuffer) return unsplashBuffer;
+  }
 
-    // Fallback 2: Buscar en Google Custom Search
+  // 4. Fallback 2: Buscar en Google Custom Search API (si está configurada)
+  if (process.env.GOOGLE_CUSTOM_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_ENGINE_ID) {
     const googleBuffer = await searchGoogle(keywords, log);
     if (googleBuffer) return googleBuffer;
   }
 
-  // Fallback 3: Imagen estática curada por categoría
+  // 5. Fallback 3: Buscar en Wikimedia Commons (Completamente gratuito y público)
+  const wikimediaBuffer = await searchWikimedia(keywords, log);
+  if (wikimediaBuffer) return wikimediaBuffer;
+
+  // 6. Fallback 4: Imagen estática curada por categoría
   log?.(`[MediaScraper] [Fallback] Usando imagen estática para la categoría: ${noticia.categoria.toUpperCase()}`);
   const fallbacks = CATEGORY_FALLBACKS[noticia.categoria];
   const fallbackUrl = fallbacks[Math.floor(Math.random() * fallbacks.length)];

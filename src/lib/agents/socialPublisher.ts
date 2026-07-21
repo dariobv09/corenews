@@ -9,7 +9,7 @@ import path from 'path';
 /**
  * Ensures that the Supabase storage bucket exists and is public
  */
-async function ensureStorageBucket(log?: (m: string) => void): Promise<boolean> {
+export async function ensureStorageBucket(log?: (m: string) => void): Promise<boolean> {
   if (!isSupabaseConfigured() || !supabaseAdmin) return false;
   try {
     const bucketName = 'tiktok-carousel';
@@ -37,7 +37,7 @@ async function ensureStorageBucket(log?: (m: string) => void): Promise<boolean> 
 /**
  * Uploads a slide image to Supabase Storage or saves it locally as fallback
  */
-async function saveSlideImage(
+export async function saveSlideImage(
   noticia: Noticia,
   todayStr: string,
   buffer: Buffer,
@@ -87,7 +87,7 @@ async function saveSlideImage(
 /**
  * Registers the slide in the database (Supabase or mockStore)
  */
-async function registerSlideInDatabase(
+export async function registerSlideInDatabase(
   noticia: Noticia,
   imageUrl: string,
   log?: (m: string) => void

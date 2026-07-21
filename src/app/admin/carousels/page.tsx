@@ -182,6 +182,27 @@ export default async function CarouselsAdminPage() {
     });
   }
 
+  // 3. Fetch today's news articles to detect missing slides
+  let todayNoticias: Noticia[] = [];
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('noticias')
+        .select('*')
+        .gte('fecha_actualizacion', todayStart)
+        .order('fecha_actualizacion', { ascending: false });
+      if (!error && data) {
+        todayNoticias = data;
+      }
+    } catch (err) {
+      console.error('Error fetching today\'s noticias:', err);
+    }
+  } else {
+    todayNoticias = mockStore.getNoticias().filter(
+      (n) => new Date(n.fecha_actualizacion).getTime() >= new Date(todayStart).getTime()
+    );
+  }
+
   return (
     <div style={{
       backgroundColor: '#000000',
@@ -233,7 +254,7 @@ export default async function CarouselsAdminPage() {
         </div>
 
         {/* Client side rendering of carousels */}
-        <CarouselsAdminClient initialSlides={slides} />
+        <CarouselsAdminClient initialSlides={slides} todayNoticias={todayNoticias} />
       </div>
     </div>
   );
