@@ -617,7 +617,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                 }}>
                   {categorySlides.map((slide, idx) => {
                     const isSingleLoading = downloadingSingle[slide.id];
-                    const isSlideGenerating = generatingSlide[slide.noticia_id];
+                    const isSlideGenerating = slide.noticia_id ? generatingSlide[slide.noticia_id] : false;
 
                     return (
                       <div key={slide.id} style={{
@@ -717,7 +717,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                               {isSingleLoading ? '...' : '💾 Descargar'}
                             </button>
                             <button
-                              onClick={() => handleGenerateSlide(slide.noticia_id, true)}
+                              onClick={() => slide.noticia_id && handleGenerateSlide(slide.noticia_id, true)}
                               disabled={isSlideGenerating || isSingleLoading}
                               title="Volver a generar esta imagen con otro fondo"
                               style={{
