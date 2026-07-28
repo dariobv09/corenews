@@ -106,8 +106,12 @@ async function refineDallEPrompt(noticia: Noticia, openai: OpenAI, log?: (m: str
  * Downloads an image from a URL and returns it as a Buffer
  */
 async function downloadImage(url: string, log?: (m: string) => void): Promise<Buffer> {
-  log?.(`[MediaScraper] Descargando imagen desde URL: ${url}`);
-  const res = await fetch(url);
+  let targetUrl = url;
+  if (targetUrl.startsWith('//')) {
+    targetUrl = `https:${targetUrl}`;
+  }
+  log?.(`[MediaScraper] Descargando imagen desde URL: ${targetUrl}`);
+  const res = await fetch(targetUrl);
   if (!res.ok) {
     throw new Error(`Failed to download image: HTTP status ${res.status}`);
   }
@@ -229,10 +233,15 @@ async function searchWikimedia(query: string, log?: (m: string) => void): Promis
 
     for (const pageId of Object.keys(pages)) {
       const page = pages[pageId];
-      const imageUrl = page.imageinfo?.[0]?.url;
-      // Accept only common image extensions
-      if (imageUrl && (imageUrl.endsWith('.png') || imageUrl.endsWith('.jpg') || imageUrl.endsWith('.jpeg') || imageUrl.endsWith('.webp'))) {
-        urls.push(imageUrl);
+      let imageUrl = page.imageinfo?.[0]?.url;
+      if (imageUrl) {
+        if (imageUrl.startsWith('//')) {
+          imageUrl = `https:${imageUrl}`;
+        }
+        // Accept only common image extensions
+        if (imageUrl.endsWith('.png') || imageUrl.endsWith('.jpg') || imageUrl.endsWith('.jpeg') || imageUrl.endsWith('.webp')) {
+          urls.push(imageUrl);
+        }
       }
     }
 
