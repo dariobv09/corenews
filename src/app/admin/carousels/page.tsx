@@ -137,92 +137,94 @@ export default async function CarouselsAdminPage() {
     );
   }
 
-  // 2. Fetch slides generated today (current calendar day in Spain/Madrid timezone)
+  // 2. Fetch active news articles (today's articles or latest 15 articles as fallback)
   const now = new Date();
   const madridDateStr = now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
   const madridTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
   const diffMs = madridTime.getTime() - now.getTime();
   const todayStart = new Date(new Date(`${madridDateStr}T00:00:00`).getTime() - diffMs).toISOString();
 
+  let todayNoticias: Noticia[] = [];
   let slides: ExtendedSlide[] = [];
 
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      const { data, error } = await supabaseAdmin
-        .from('carousel_slides')
-        .select('*, noticias(*)')
-        .gte('created_at', todayStart)
-        .order('created_at', { ascending: false });
+      // Step A: Fetch news published today
+      const { data: newsToday, error: newsErr } = await supabaseAdmin
+        .from('noticias')
+        .select('*')
+        .gte('fecha_actualizacion', todayStart)
+        .order('fecha_actualizacion', { ascending: false });
 
-      if (error) throw error;
-      
-      const validRawSlides: any[] = [];
-      const brokenIdsToDelete: string[] = [];
-
-      (data || []).forEach((s: any) => {
-        if (s.image_url && s.image_url.startsWith('/')) {
-          brokenIdsToDelete.push(s.id);
-        } else {
-          validRawSlides.push(s);
-        }
-      });
-
-      // Background cleanup of broken slides
-      if (brokenIdsToDelete.length > 0) {
-        supabaseAdmin
-          .from('carousel_slides')
-          .delete()
-          .in('id', brokenIdsToDelete)
-          .then(() => {
-            console.log(`[AdminPage] Autolimpieza: eliminadas ${brokenIdsToDelete.length} diapositivas rotas de Supabase.`);
-          });
+      if (!newsErr && newsToday && newsToday.length > 0) {
+        todayNoticias = newsToday;
+      } else {
+        // Fallback: If no articles published today yet, get the latest 15 articles
+        const { data: recentNews } = await supabaseAdmin
+          .from('noticias')
+          .select('*')
+          .order('fecha_actualizacion', { ascending: false })
+          .limit(15);
+        todayNoticias = recentNews || [];
       }
 
-      slides = validRawSlides.map((s: any) => ({
-        id: s.id,
-        noticia_id: s.noticia_id,
-        categoria: s.categoria,
-        slide_order: s.slide_order,
-        image_url: s.image_url,
-        created_at: s.created_at,
-        noticia: s.noticias as Noticia | null
-      }));
+      // Step B: Fetch slides corresponding to active news items
+      const activeNewsIds = todayNoticias.map((n) => n.id);
+      if (activeNewsIds.length > 0) {
+        const { data: slidesData, error: slidesErr } = await supabaseAdmin
+          .from('carousel_slides')
+          .select('*, noticias(*)')
+          .in('noticia_id', activeNewsIds)
+          .order('created_at', { ascending: false });
+
+        if (!slidesErr && slidesData) {
+          const validRawSlides: any[] = [];
+          const brokenIdsToDelete: string[] = [];
+
+          slidesData.forEach((s: any) => {
+            if (s.image_url && s.image_url.startsWith('/')) {
+              brokenIdsToDelete.push(s.id);
+            } else {
+              validRawSlides.push(s);
+            }
+          });
+
+          // Background cleanup of broken slides
+          if (brokenIdsToDelete.length > 0) {
+            supabaseAdmin
+              .from('carousel_slides')
+              .delete()
+              .in('id', brokenIdsToDelete)
+              .then(() => {
+                console.log(`[AdminPage] Autolimpieza: eliminadas ${brokenIdsToDelete.length} diapositivas rotas.`);
+              });
+          }
+
+          slides = validRawSlides.map((s: any) => ({
+            id: s.id,
+            noticia_id: s.noticia_id,
+            categoria: s.categoria,
+            slide_order: s.slide_order,
+            image_url: s.image_url,
+            created_at: s.created_at,
+            noticia: s.noticias as Noticia | null
+          }));
+        }
+      }
     } catch (err) {
-      console.error('Error fetching today\'s slides from Supabase:', err);
+      console.error('Error fetching carousels data from Supabase:', err);
     }
   } else {
     // Fallback Mock Store
-    const localSlides = mockStore.getCarouselSlides().filter(
-      (s) => new Date(s.created_at).getTime() >= new Date(todayStart).getTime()
-    );
+    todayNoticias = mockStore.getNoticias().slice(0, 15);
+    const localSlides = mockStore.getCarouselSlides();
     slides = localSlides.map((s) => {
-      const newsItem = s.noticia_id ? mockStore.getNoticias().find(n => n.id === s.noticia_id) : null;
+      const newsItem = s.noticia_id ? mockStore.getNoticias().find((n) => n.id === s.noticia_id) : null;
       return {
         ...s,
         noticia: newsItem
       };
     });
-  }
-
-  // 3. Fetch today's news articles to detect missing slides
-  let todayNoticias: Noticia[] = [];
-  if (isSupabaseConfigured() && supabaseAdmin) {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('noticias')
-        .select('*')
-        .gte('fecha_actualizacion', todayStart)
-        .order('fecha_actualizacion', { ascending: false });
-      if (!error && data) {
-        todayNoticias = data;
-      }
-    } catch (err) {
-      console.error('Error fetching today\'s noticias:', err);
-    }
-  } else {
-    todayNoticias = mockStore.getNoticias().filter(
-      (n) => new Date(n.fecha_actualizacion).getTime() >= new Date(todayStart).getTime()
-    );
   }
 
   return (
