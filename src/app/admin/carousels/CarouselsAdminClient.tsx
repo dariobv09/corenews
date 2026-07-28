@@ -335,7 +335,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
               </p>
             </div>
 
-            {newsMissingSlides.length > 1 && (
+            {newsMissingSlides.length >= 1 && (
               <button
                 onClick={handleGenerateAllMissing}
                 disabled={generatingAll}
@@ -360,7 +360,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                     Generando todo...
                   </>
                 ) : (
-                  '✨ Generar todas'
+                  `✨ Generar todas (${newsMissingSlides.length})`
                 )}
               </button>
             )}
@@ -438,18 +438,52 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       {slides.length === 0 ? (
         <div style={{
           textAlign: 'center',
-          padding: '80px 24px',
+          padding: '60px 24px',
           backgroundColor: '#0a0a0c',
-          borderRadius: '12px',
-          border: '1px solid #1f1f23'
+          borderRadius: '16px',
+          border: '1px solid #1f1f23',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '24px' }}>🎬</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎬</div>
           <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px 0' }}>
-            No hay diapositivas generadas hoy
+            No hay diapositivas generadas aún
           </h2>
-          <p style={{ fontSize: '14px', color: '#a1a1aa', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>
-            Usa el panel superior para generar las diapositivas de las noticias publicadas hoy de forma instantánea.
+          <p style={{ fontSize: '14px', color: '#a1a1aa', maxWidth: '500px', margin: '0 0 24px 0', lineHeight: 1.6 }}>
+            Haz clic a continuación para generar las imágenes personalizadas de las noticias activas de hoy de forma instantánea.
           </p>
+
+          {todayNoticias.length > 0 && (
+            <button
+              onClick={handleGenerateAllMissing}
+              disabled={generatingAll}
+              style={{
+                backgroundColor: '#f59e0b',
+                color: '#000000',
+                border: 'none',
+                padding: '14px 28px',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: generatingAll ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: '0 4px 20px rgba(245, 158, 11, 0.2)',
+                transition: 'transform 0.2s, background-color 0.2s'
+              }}
+            >
+              {generatingAll ? (
+                <>
+                  <span className="spinner" />
+                  Generando diapositivas...
+                </>
+              ) : (
+                `✨ Generar todas las diapositivas (${todayNoticias.length} noticias)`
+              )}
+            </button>
+          )}
         </div>
       ) : (
         <>
