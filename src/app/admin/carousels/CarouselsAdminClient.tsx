@@ -289,8 +289,49 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       
+      {/* Top Admin Header Bar */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#0a0a0c',
+        border: '1px solid #1f1f23',
+        borderRadius: '16px',
+        padding: '20px 28px',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#ffffff', letterSpacing: '-0.02em' }}>
+            🎬 Panel de Diapositivas TikTok ({slides.length} Generadas)
+          </h1>
+          <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '4px 0 0 0' }}>
+            {todayNoticias.length} noticias activas cargadas en el sistema.
+          </p>
+        </div>
+
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            backgroundColor: '#1f1f23',
+            color: '#ffffff',
+            border: '1px solid #27272a',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          🔄 Actualizar Panel
+        </button>
+      </div>
+
       {/* ⚠️ Noticias sin diapositiva Panel (On-demand creator) */}
       {newsMissingSlides.length > 0 && (
         <div style={{
