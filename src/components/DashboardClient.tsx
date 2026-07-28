@@ -606,6 +606,9 @@ function ArticleReader({ noticia, slideUrl, onClose }: { noticia: Noticia; slide
             <img
               src={slideUrl}
               alt={noticia.titulo}
+              onError={(e) => {
+                (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+              }}
               style={{
                 width: '100%',
                 maxHeight: '520px',
