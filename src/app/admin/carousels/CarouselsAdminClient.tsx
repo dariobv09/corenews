@@ -63,7 +63,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   };
 
   (slides || []).forEach((slide) => {
-    if (slide && slide.categoria && slidesByCategory[slide.categoria]) {
+    if (slide && slide.noticia && slide.categoria && slidesByCategory[slide.categoria]) {
       slidesByCategory[slide.categoria].push(slide);
     }
   });
