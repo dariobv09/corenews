@@ -156,7 +156,29 @@ export default async function CarouselsAdminPage() {
 
       if (error) throw error;
       
-      slides = (data || []).map((s: any) => ({
+      const validRawSlides: any[] = [];
+      const brokenIdsToDelete: string[] = [];
+
+      (data || []).forEach((s: any) => {
+        if (s.image_url && s.image_url.startsWith('/')) {
+          brokenIdsToDelete.push(s.id);
+        } else {
+          validRawSlides.push(s);
+        }
+      });
+
+      // Background cleanup of broken slides
+      if (brokenIdsToDelete.length > 0) {
+        supabaseAdmin
+          .from('carousel_slides')
+          .delete()
+          .in('id', brokenIdsToDelete)
+          .then(() => {
+            console.log(`[AdminPage] Autolimpieza: eliminadas ${brokenIdsToDelete.length} diapositivas rotas de Supabase.`);
+          });
+      }
+
+      slides = validRawSlides.map((s: any) => ({
         id: s.id,
         noticia_id: s.noticia_id,
         categoria: s.categoria,

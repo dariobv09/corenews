@@ -63,11 +63,13 @@ export async function saveSlideImage(
       log?.(`[SocialPublisher] ✓ Subida exitosa. URL: ${publicUrl}`);
       return publicUrl;
     } catch (err: any) {
-      log?.(`[SocialPublisher] ❌ Error subiendo a Supabase: ${err.message || err}. Usando fallback local...`);
+      log?.(`[SocialPublisher] ❌ Error subiendo a Supabase: ${err.message || err}.`);
+      // When Supabase is configured, NEVER return a local relative fallback URL that breaks on Vercel CDN
+      return null;
     }
   }
 
-  // Local fallback save
+  // Local fallback save (Only when Supabase is not configured)
   try {
     const localDir = path.join(process.cwd(), 'public', 'carousel');
     if (!fs.existsSync(localDir)) {
@@ -92,6 +94,11 @@ export async function registerSlideInDatabase(
   imageUrl: string,
   log?: (m: string) => void
 ): Promise<boolean> {
+  if (!imageUrl || imageUrl.startsWith('/')) {
+    log?.(`[SocialPublisher] ❌ Omitiendo registro de slide con URL inválida o relativa en Supabase: ${imageUrl}`);
+    return false;
+  }
+
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
       log?.(`[SocialPublisher] Registrando slide en la tabla 'carousel_slides' de Supabase...`);
@@ -113,7 +120,8 @@ export async function registerSlideInDatabase(
       log?.(`[SocialPublisher] ✓ Slide registrado correctamente en Supabase.`);
       return true;
     } catch (err: any) {
-      log?.(`[SocialPublisher] ❌ Error al registrar en Supabase: ${err.message || err}. Usando fallback local...`);
+      log?.(`[SocialPublisher] ❌ Error al registrar en Supabase: ${err.message || err}.`);
+      return false;
     }
   }
 

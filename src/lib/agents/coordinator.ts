@@ -232,13 +232,17 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
 
     // --- PIPELINE DE PUBLICACIÓN AUTOMÁTICA EN TIKTOK ---
     try {
-      addAgentLog('Coordinador', '🎬 Iniciando pipeline de publicación de carruseles de TikTok (Modo Foto)...', 'info');
-      const { publishTikTokCarousels } = await import('./socialPublisher');
-      const tiktokResult = await publishTikTokCarousels((msg, type) => addAgentLog('Sistema', msg, type || 'info'));
-      if (tiktokResult.success) {
-        addAgentLog('Coordinador', '✓ Pipeline de TikTok finalizado exitosamente.', 'success');
+      if (process.env.VERCEL) {
+        addAgentLog('Coordinador', 'ℹ Entorno Serverless Vercel detectado: Las diapositivas para TikTok se generan bajo demanda al acceder al panel administrativo (/admin/carousels) para evitar timeouts.', 'info');
       } else {
-        addAgentLog('Coordinador', `⚠ Pipeline de TikTok finalizó con advertencias: ${tiktokResult.error}`, 'warning');
+        addAgentLog('Coordinador', '🎬 Iniciando pipeline de publicación de carruseles de TikTok (Modo Foto)...', 'info');
+        const { publishTikTokCarousels } = await import('./socialPublisher');
+        const tiktokResult = await publishTikTokCarousels((msg, type) => addAgentLog('Sistema', msg, type || 'info'));
+        if (tiktokResult.success) {
+          addAgentLog('Coordinador', '✓ Pipeline de TikTok finalizado exitosamente.', 'success');
+        } else {
+          addAgentLog('Coordinador', `⚠ Pipeline de TikTok finalizó con advertencias: ${tiktokResult.error}`, 'warning');
+        }
       }
     } catch (tkErr: any) {
       addAgentLog('Coordinador', `❌ Error inesperado en el pipeline de TikTok: ${tkErr.message || tkErr}`, 'warning');
