@@ -470,6 +470,9 @@ function ArticleCard({ noticia, slideUrl, index, onClick }: { noticia: Noticia; 
               <img
                 src={slideUrl}
                 alt={noticia.titulo}
+                onError={(e) => {
+                  (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                }}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
