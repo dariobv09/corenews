@@ -1,5 +1,6 @@
 import React from "react";
 import { getLatestNews, getNewsById } from "@/lib/data";
+import { isSupabaseConfigured, supabaseAdmin } from "@/lib/supabase";
 import { Categoria, Noticia } from "@/types";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -109,6 +110,22 @@ export default async function Page({ params, searchParams }: PageProps) {
 
   if (!noticia) {
     return notFound();
+  }
+
+  let slideImageUrl: string | null = null;
+  if (isSupabaseConfigured() && supabaseAdmin) {
+    try {
+      const { data: slide } = await supabaseAdmin
+        .from('carousel_slides')
+        .select('image_url')
+        .eq('noticia_id', noticia.id)
+        .maybeSingle();
+      if (slide && slide.image_url) {
+        slideImageUrl = slide.image_url;
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   // 2. DATOS ESTRUCTURADOS (JSON-LD)
@@ -230,6 +247,31 @@ export default async function Page({ params, searchParams }: PageProps) {
               </p>
             )}
           </header>
+
+          {slideImageUrl && (
+            <div style={{
+              width: '100%',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              marginBottom: 40,
+              border: '1px solid var(--border)',
+              backgroundColor: '#0a0a0c',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.4)'
+            }}>
+              <img
+                src={slideImageUrl}
+                alt={noticia.titulo}
+                style={{
+                  width: '100%',
+                  maxHeight: '520px',
+                  objectFit: 'contain'
+                }}
+              />
+            </div>
+          )}
 
           <div style={{ borderTop: '1px solid var(--border)', marginBottom: 48 }} />
 
