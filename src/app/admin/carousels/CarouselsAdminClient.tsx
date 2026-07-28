@@ -39,20 +39,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [generatingSlide, setGeneratingSlide] = useState<Record<string, boolean>>({});
   const [generatingAll, setGeneratingAll] = useState(false);
 
-  const getProxyUrl = (url: string) => {
-    if (url && url.startsWith('http')) {
-      const parts = url.split('/');
-      const filename = parts[parts.length - 1];
-      const queryIndex = filename.indexOf('?');
-      if (queryIndex !== -1) {
-        const cleanName = filename.substring(0, queryIndex);
-        const query = filename.substring(queryIndex);
-        return `/api/carousel-image/${cleanName}${query}`;
-      }
-      return `/api/carousel-image/${filename}`;
-    }
-    return url;
-  };
+  // Image error state map
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   // Group slides by category dynamically from current state
   const slidesByCategory: Record<Categoria, ExtendedSlide[]> = {
@@ -134,13 +122,10 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     setGeneratingAll(false);
   };
 
-  /**
-   * Helper to download a single image using Blobs
-   */
   const handleDownloadSingle = async (slide: ExtendedSlide) => {
     setDownloadingSingle(prev => ({ ...prev, [slide.id]: true }));
     try {
-      const response = await fetch(getProxyUrl(slide.image_url));
+      const response = await fetch(slide.image_url);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       
@@ -154,8 +139,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Error downloading single image:', err);
-      // Fallback
-      window.open(getProxyUrl(slide.image_url), '_blank');
+      window.open(slide.image_url, '_blank');
     } finally {
       setDownloadingSingle(prev => ({ ...prev, [slide.id]: false }));
     }
@@ -172,7 +156,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       const todayStr = new Date().toISOString().split('T')[0];
 
       const fetchPromises = categorySlides.map(async (slide, idx) => {
-        const response = await fetch(getProxyUrl(slide.image_url));
+        const response = await fetch(slide.image_url);
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -214,7 +198,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       const todayStr = new Date().toISOString().split('T')[0];
 
       const fetchPromises = slides.map(async (slide, idx) => {
-        const response = await fetch(getProxyUrl(slide.image_url));
+        const response = await fetch(slide.image_url);
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -254,7 +238,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     setAllSeparatelyProgress('Preparando...');
     try {
       const fetchPromises = slides.map(async (slide, idx) => {
-        const response = await fetch(getProxyUrl(slide.image_url));
+        const response = await fetch(slide.image_url);
         const blob = await response.blob();
         return new File(
           [blob],
@@ -280,7 +264,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         const slide = slides[i];
         setAllSeparatelyProgress(`${i + 1}/${slides.length}`);
 
-        const response = await fetch(getProxyUrl(slide.image_url));
+        const response = await fetch(slide.image_url);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         
@@ -701,14 +685,47 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                               <span className="spinner" style={{ width: '24px', height: '24px' }} />
                               <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 600 }}>Regenerando imagen...</span>
                             </div>
+                          ) : imageErrors[slide.id] ? (
+                            <div style={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: '#18181b',
+                              padding: '16px',
+                              textAlign: 'center',
+                              gap: '12px'
+                            }}>
+                              <span style={{ fontSize: '28px' }}>⚠️</span>
+                              <span style={{ fontSize: '11px', color: '#a1a1aa' }}>Imagen no disponible</span>
+                              <button
+                                onClick={() => slide.noticia_id && handleGenerateSlide(slide.noticia_id, true)}
+                                style={{
+                                  backgroundColor: '#f59e0b',
+                                  color: '#000',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                🔄 Recrear Foto
+                              </button>
+                            </div>
                           ) : null}
                           <img
-                            src={getProxyUrl(`${slide.image_url}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`)}
+                            src={`${slide.image_url}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`}
                             alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
+                            onError={() => setImageErrors(prev => ({ ...prev, [slide.id]: true }))}
                             style={{
                               width: '100%',
                               height: '100%',
-                              objectFit: 'cover'
+                              objectFit: 'cover',
+                              display: imageErrors[slide.id] ? 'none' : 'block'
                             }}
                           />
                         </div>
