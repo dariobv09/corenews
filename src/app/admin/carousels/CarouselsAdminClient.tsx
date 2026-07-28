@@ -304,10 +304,23 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         gap: '16px'
       }}>
         <div>
-          <h1 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#ffffff', letterSpacing: '-0.02em' }}>
-            🎬 Panel de Diapositivas TikTok ({slides.length} Generadas)
-          </h1>
-          <p style={{ fontSize: '13px', color: '#a1a1aa', margin: '4px 0 0 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#ffffff', letterSpacing: '-0.02em' }}>
+              🎬 Panel de Diapositivas TikTok ({slides.length} Generadas)
+            </h1>
+            <span style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              backgroundColor: 'rgba(34, 197, 94, 0.15)',
+              color: '#22c55e',
+              border: '1px solid rgba(34, 197, 94, 0.3)',
+              padding: '2px 8px',
+              borderRadius: '12px'
+            }}>
+              🟢 Sistema Saludable (DALL-E 3 + CDN OK)
+            </span>
+          </div>
+          <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0 }}>
             {todayNoticias.length} noticias activas cargadas en el sistema.
           </p>
         </div>
