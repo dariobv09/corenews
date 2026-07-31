@@ -204,31 +204,35 @@ export default async function CarouselsAdminPage() {
               });
           }
 
-          slides = validRawSlides.map((s: any) => ({
-            id: s.id,
-            noticia_id: s.noticia_id,
-            categoria: s.categoria,
-            slide_order: s.slide_order,
-            image_url: s.image_url,
-            created_at: s.created_at,
-            noticia: s.noticias as Noticia | null
-          }));
+          slides = (todayNoticias || []).map((n) => {
+            const rawFileName = `slide_${n.categoria}_${n.id}_${madridDateStr}.jpg`;
+            const proxyUrl = `/api/carousel-image/${rawFileName}`;
+            return {
+              id: `slide_${n.id}`,
+              noticia_id: n.id,
+              categoria: n.categoria,
+              slide_order: 0,
+              image_url: proxyUrl,
+              created_at: new Date().toISOString(),
+              noticia: n
+            };
+          });
         }
       }
     } catch (err) {
       console.error('Error fetching carousels data from Supabase:', err);
     }
   } else {
-    // Fallback Mock Store
     todayNoticias = mockStore.getNoticias().slice(0, 15);
-    const localSlides = mockStore.getCarouselSlides();
-    slides = localSlides.map((s) => {
-      const newsItem = s.noticia_id ? mockStore.getNoticias().find((n) => n.id === s.noticia_id) : null;
-      return {
-        ...s,
-        noticia: newsItem
-      };
-    });
+    slides = todayNoticias.map((n) => ({
+      id: `slide_${n.id}`,
+      noticia_id: n.id,
+      categoria: n.categoria,
+      slide_order: 0,
+      image_url: `/api/carousel-image/slide_${n.categoria}_${n.id}_today.jpg`,
+      created_at: new Date().toISOString(),
+      noticia: n
+    }));
   }
 
   return (
