@@ -175,9 +175,10 @@ export default async function CarouselsAdminPage() {
           });
         }
 
-        slides = (todayNoticias || []).map((n) => {
-          const existing = existingSlideMap.get(n.id);
-          if (existing) {
+        slides = (todayNoticias || [])
+          .map((n) => {
+            const existing = existingSlideMap.get(n.id);
+            if (!existing) return null;
             return {
               id: existing.id,
               noticia_id: n.id,
@@ -187,19 +188,8 @@ export default async function CarouselsAdminPage() {
               created_at: existing.created_at,
               noticia: n
             };
-          }
-
-          const rawFileName = `slide_${n.categoria}_${n.id}_${madridDateStr}.jpg`;
-          return {
-            id: `slide_${n.id}`,
-            noticia_id: n.id,
-            categoria: n.categoria,
-            slide_order: 0,
-            image_url: `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`,
-            created_at: new Date().toISOString(),
-            noticia: n
-          };
-        });
+          })
+          .filter(Boolean) as ExtendedSlide[];
       }
     } catch (err) {
       console.error('Error fetching carousels data from Supabase:', err);
