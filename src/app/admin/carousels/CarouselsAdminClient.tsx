@@ -72,6 +72,30 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     } finally {
       setIsSavingAll(false);
     }
+  const handleDownloadSingleBlob = async (slide: ExtendedSlide, index: number) => {
+    try {
+      const rawFileName = slide.image_url.split('/').pop() || `slide_${index}.jpg`;
+      const directUrl = slide.image_url.startsWith('http')
+        ? slide.image_url
+        : `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
+      
+      const res = await fetch(directUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `noticia_${index + 1}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Error descargando imagen:', err);
+      const rawFileName = slide.image_url.split('/').pop() || `slide_${index}.jpg`;
+      window.open(`https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`, '_blank');
+    }
   };
 
   return (
@@ -189,7 +213,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                     src={directUrl}
                     alt={slide.noticia?.titulo || `Foto TikTok ${idx + 1}`}
                     onError={(e) => {
-                      // Fallback to proxy if CDN fails
                       if (e.currentTarget.src !== proxyUrl) {
                         e.currentTarget.src = proxyUrl;
                       }
@@ -209,25 +232,21 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                     {idx + 1}. {slide.noticia?.titulo}
                   </p>
 
-                  <a
-                    href={proxyUrl}
-                    download={`noticia_${idx + 1}.jpg`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => handleDownloadSingleBlob(slide, idx)}
                     style={{
-                      display: 'block',
-                      textAlign: 'center',
                       backgroundColor: '#34c759', // iOS Green
                       color: '#ffffff',
-                      textDecoration: 'none',
-                      padding: '10px',
+                      border: 'none',
+                      padding: '12px',
                       borderRadius: '8px',
                       fontSize: '14px',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
                     }}
                   >
-                    ⬇️ DESCARGAR FOTO {idx + 1}
-                  </a>
+                    ⬇️ DESCARGAR FOTO {idx + 1} (JPEG)
+                  </button>
                 </div>
 
               </div>
