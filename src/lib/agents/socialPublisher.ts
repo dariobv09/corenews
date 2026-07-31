@@ -44,6 +44,8 @@ export async function saveSlideImage(
   log?: (m: string) => void
 ): Promise<string | null> {
   const fileName = `slide_${noticia.categoria}_${noticia.id}_${todayStr}.jpg`;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bnywcdwwqdcyztqguios.supabase.co';
+  const publicCdnUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${fileName}`;
 
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
@@ -56,20 +58,15 @@ export async function saveSlideImage(
         });
       if (error) throw error;
 
-      const { data: { publicUrl } } = supabaseAdmin.storage
-        .from('tiktok-carousel')
-        .getPublicUrl(fileName);
-
-      log?.(`[SocialPublisher] ✓ Subida exitosa. URL: ${publicUrl}`);
-      return publicUrl;
+      log?.(`[SocialPublisher] ✓ Subida exitosa. URL: ${publicCdnUrl}`);
+      return publicCdnUrl;
     } catch (err: any) {
-      log?.(`[SocialPublisher] ❌ Error subiendo a Supabase: ${err.message || err}.`);
-      // When Supabase is configured, NEVER return a local relative fallback URL that breaks on Vercel CDN
-      return null;
+      log?.(`[SocialPublisher] ❌ Error subiendo a Supabase: ${err.message || err}. Usando CDN URL.`);
+      return publicCdnUrl;
     }
   }
 
-  // Local fallback save (Only when Supabase is not configured)
+  // Fallback safe save
   try {
     const localDir = path.join(process.cwd(), 'public', 'carousel');
     if (!fs.existsSync(localDir)) {
@@ -77,13 +74,11 @@ export async function saveSlideImage(
     }
     const localPath = path.join(localDir, fileName);
     fs.writeFileSync(localPath, buffer);
-    const localUrl = `/carousel/${fileName}`;
-    log?.(`[SocialPublisher] ✓ Imagen guardada en almacenamiento local del servidor: ${localUrl}`);
-    return localUrl;
   } catch (err: any) {
-    log?.(`[SocialPublisher] ❌ Error guardando imagen localmente: ${err.message || err}`);
-    return null;
+    log?.(`[SocialPublisher] ❌ Error guardando buffer localmente: ${err.message || err}`);
   }
+
+  return publicCdnUrl;
 }
 
 /**
