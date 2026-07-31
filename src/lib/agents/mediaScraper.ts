@@ -273,7 +273,8 @@ async function searchWikimedia(query: string, log?: (m: string) => void): Promis
  */
 export async function getBgImageForNews(
   noticia: Noticia,
-  log?: (m: string) => void
+  log?: (m: string) => void,
+  customPrompt?: string
 ): Promise<Buffer> {
   const apiKey = process.env.OPENAI_API_KEY || '';
   let openai: OpenAI | null = null;
@@ -285,8 +286,11 @@ export async function getBgImageForNews(
   // 1. Intentar DALL-E 3
   if (openai) {
     try {
-      const visualPrompt = await refineDallEPrompt(noticia, openai, log);
-      log?.(`[MediaScraper] [DALL-E 3] Generando imagen de fondo para: "${noticia.titulo.substring(0, 50)}..."`);
+      const visualPrompt = customPrompt && customPrompt.trim().length > 0 
+        ? customPrompt 
+        : await refineDallEPrompt(noticia, openai, log);
+
+      log?.(`[MediaScraper] [DALL-E 3] Generando imagen de fondo con prompt: "${visualPrompt.substring(0, 60)}..."`);
       
       const response = await openai.images.generate({
         model: 'dall-e-3',

@@ -10,10 +10,13 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
-    const { noticia_id, regenerate } = await request.json();
-    if (!noticia_id) {
-      return NextResponse.json({ error: 'Missing noticia_id' }, { status: 400 });
-    }
+    const { 
+      noticia_id, 
+      custom_prompt, 
+      manual_text, 
+      overlay_text, 
+      regenerate 
+    } = await request.json();
 
     let noticia: Noticia | null = null;
     const logs: string[] = [];
@@ -22,83 +25,77 @@ export async function POST(request: Request) {
       logs.push(msg);
     };
 
-    if (isSupabaseConfigured() && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
-        .from('noticias')
-        .select('*')
-        .eq('id', noticia_id)
-        .maybeSingle();
-      
-      if (error) throw error;
-      noticia = data;
-    } else {
-      noticia = mockStore.getNoticias().find(n => n.id === noticia_id) || null;
+    if (noticia_id) {
+      if (isSupabaseConfigured() && supabaseAdmin) {
+        const { data } = await supabaseAdmin
+          .from('noticias')
+          .select('*')
+          .eq('id', noticia_id)
+          .maybeSingle();
+        noticia = data;
+      } else {
+        noticia = mockStore.getNoticias().find(n => n.id === noticia_id) || null;
+      }
+    }
+
+    if (!noticia && manual_text) {
+      noticia = {
+        id: `manual_${Date.now()}`,
+        categoria: 'ia',
+        importancia: 'Alta',
+        titulo: overlay_text || manual_text.substring(0, 60),
+        subtitulo: manual_text.substring(0, 120),
+        hecho_principal: manual_text,
+        desarrollo: manual_text,
+        actores: 'General',
+        contexto: manual_text,
+        datos_verificables: 'N/A',
+        estado_actual: 'N/A',
+        declaraciones: 'N/A',
+        consecuencias: 'N/A',
+        fecha_actualizacion: new Date().toISOString()
+      };
     }
 
     if (!noticia) {
-      return NextResponse.json({ error: 'Noticia no encontrada' }, { status: 404 });
+      return NextResponse.json({ error: 'No se ha especificado ninguna noticia válida o texto manual.' }, { status: 400 });
     }
 
     log(`[ApiGenerate] Iniciando generación de slide para: "${noticia.titulo}"`);
-
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Check if slide already exists to prevent duplicate generation unless regenerate=true
-    if (!regenerate) {
-      let existingSlide = null;
-      if (isSupabaseConfigured() && supabaseAdmin) {
-        const { data } = await supabaseAdmin
-          .from('carousel_slides')
-          .select('*')
-          .eq('noticia_id', noticia_id)
-          .maybeSingle();
-        existingSlide = data;
-      } else {
-        existingSlide = mockStore.getCarouselSlides().find(s => s.noticia_id === noticia_id);
-      }
-
-      if (existingSlide) {
-        log(`[ApiGenerate] Slide ya existe para esta noticia. Omitiendo.`);
-        return NextResponse.json({ success: true, slide: existingSlide, alreadyExists: true, logs });
-      }
-    }
-
-    // Asegurar bucket de almacenamiento
+    // Ensure bucket exists
     await ensureStorageBucket(log);
 
-    // 2. Get background image (DALL-E 3 -> Wikimedia -> fallback)
-    const bgBuffer = await getBgImageForNews(noticia, log);
+    // 1. Generate visual background using custom_prompt or auto prompt
+    const bgBuffer = await getBgImageForNews(noticia, log, custom_prompt);
 
-    // 3. Compose slide image with text overlay
+    // 2. Compose vertical 9:16 slide with text overlay
     const slideBuffer = await createNewsSlide(noticia, bgBuffer, log);
 
-    // 4. Save/Upload slide
+    // 3. Upload to Supabase Storage
     const imageUrl = await saveSlideImage(noticia, todayStr, slideBuffer, log);
     if (!imageUrl) {
-      throw new Error('No se pudo guardar la imagen de la diapositiva.');
+      throw new Error('No se pudo guardar la imagen de la diapositiva en el CDN.');
     }
 
-    // 5. Register slide in DB
-    await registerSlideInDatabase(noticia, imageUrl, log);
-
-    log(`[ApiGenerate] ✓ Slide generado y guardado correctamente.`);
-    
-    // Retrieve the newly created slide to return it
-    let newSlide = null;
-    if (isSupabaseConfigured() && supabaseAdmin) {
-      const { data } = await supabaseAdmin
-        .from('carousel_slides')
-        .select('*')
-        .eq('noticia_id', noticia_id)
-        .maybeSingle();
-      newSlide = data;
-    } else {
-      newSlide = mockStore.getCarouselSlides().find(s => s.noticia_id === noticia_id);
+    // 4. Register in DB if real noticia_id exists
+    if (noticia.id && !noticia.id.startsWith('manual_')) {
+      await registerSlideInDatabase(noticia, imageUrl, log);
     }
 
     return NextResponse.json({
       success: true,
-      slide: newSlide,
+      imageUrl,
+      slide: {
+        id: noticia.id,
+        noticia_id: noticia.id,
+        categoria: noticia.categoria,
+        slide_order: 0,
+        image_url: imageUrl,
+        created_at: new Date().toISOString(),
+        noticia
+      },
       logs
     });
 
