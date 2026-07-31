@@ -168,6 +168,9 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         }}>
           {slides.map((slide, idx) => {
             const rawFileName = slide.image_url.split('/').pop() || `slide_${idx}.jpg`;
+            const directUrl = slide.image_url.startsWith('http')
+              ? slide.image_url
+              : `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
             const proxyUrl = `/api/carousel-image/${rawFileName}`;
 
             return (
@@ -180,11 +183,17 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                 flexDirection: 'column'
               }}>
                 
-                {/* LA IMAGEN DIRECTA VISIBLE AL 100% SIN NINGÚN MENÚ NI CAPA COMPLICADA */}
+                {/* LA IMAGEN DIRECTA VISIBLE AL 100% */}
                 <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000000' }}>
                   <img
-                    src={proxyUrl}
+                    src={directUrl}
                     alt={slide.noticia?.titulo || `Foto TikTok ${idx + 1}`}
+                    onError={(e) => {
+                      // Fallback to proxy if CDN fails
+                      if (e.currentTarget.src !== proxyUrl) {
+                        e.currentTarget.src = proxyUrl;
+                      }
+                    }}
                     style={{
                       width: '100%',
                       height: '100%',
