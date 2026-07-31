@@ -72,6 +72,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     } finally {
       setIsSavingAll(false);
     }
+  };
+
   const handleDownloadSingleBlob = async (slide: ExtendedSlide, index: number) => {
     try {
       const rawFileName = slide.image_url.split('/').pop() || `slide_${index}.jpg`;
