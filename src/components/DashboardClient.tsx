@@ -19,7 +19,6 @@ import AdBanner from './AdBanner';
 interface DashboardClientProps {
   initialNoticias: Noticia[];
   initialInformes: Record<Categoria, Informe | null>;
-  initialSlidesMap?: Record<string, string>;
 }
 
 const CATEGORIAS: { key: Categoria; label: string; description: string }[] = [
@@ -93,8 +92,7 @@ function getCycleBadgeStyles(dateStr: string) {
   }
 }
 
-export default function DashboardClient({ initialNoticias, initialInformes, initialSlidesMap = {} }: DashboardClientProps) {
-  const [slidesMap, setSlidesMap]         = useState<Record<string, string>>(initialSlidesMap);
+export default function DashboardClient({ initialNoticias, initialInformes }: DashboardClientProps) {
   const [activeTab, setActiveTab]         = useState<Categoria>('ia');
   const [noticias, setNoticias]           = useState<Noticia[]>(initialNoticias);
   const [informes, setInformes]           = useState<Record<Categoria, Informe | null>>(initialInformes);
@@ -167,7 +165,6 @@ export default function DashboardClient({ initialNoticias, initialInformes, init
     return (
       <ArticleReader
         noticia={selectedNoticia}
-        slideUrl={slidesMap[selectedNoticia.id]}
         onClose={() => setSelectedNoticia(null)}
       />
     );
@@ -311,7 +308,6 @@ export default function DashboardClient({ initialNoticias, initialInformes, init
               <React.Fragment key={noticia.id}>
                 <ArticleCard
                   noticia={noticia}
-                  slideUrl={slidesMap[noticia.id]}
                   index={idx}
                   onClick={() => setSelectedNoticia(noticia)}
                 />
@@ -342,7 +338,7 @@ export default function DashboardClient({ initialNoticias, initialInformes, init
 /* ════════════════════════════════════════════════════
    ARTICLE CARD — tarjeta de lista, estilo editorial
    ════════════════════════════════════════════════════ */
-function ArticleCard({ noticia, slideUrl, index, onClick }: { noticia: Noticia; slideUrl?: string; index: number; onClick: () => void }) {
+function ArticleCard({ noticia, index, onClick }: { noticia: Noticia; index: number; onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
 
   const isHigh = noticia.importancia === 'Alta';
@@ -360,7 +356,7 @@ function ArticleCard({ noticia, slideUrl, index, onClick }: { noticia: Noticia; 
         borderBottom: '1px solid var(--border)',
         transition: 'all 0.2s',
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
 
           {/* Índice visual */}
           <div style={{ flexShrink: 0, paddingTop: 4 }}>
@@ -455,28 +451,6 @@ function ArticleCard({ noticia, slideUrl, index, onClick }: { noticia: Noticia; 
               </span>
             </div>
           </div>
-
-          {/* Miniatura de Foto del Slide */}
-          {slideUrl && (
-            <div style={{
-              width: 100,
-              height: 135,
-              flexShrink: 0,
-              borderRadius: 10,
-              overflow: 'hidden',
-              border: '1px solid var(--border)',
-              backgroundColor: '#0a0a0c'
-            }}>
-              <img
-                src={slideUrl}
-                alt={noticia.titulo}
-                onError={(e) => {
-                  (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-                }}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -486,7 +460,7 @@ function ArticleCard({ noticia, slideUrl, index, onClick }: { noticia: Noticia; 
 /* ════════════════════════════════════════════════════
    ARTICLE READER — lector inmersivo a pantalla completa
    ════════════════════════════════════════════════════ */
-function ArticleReader({ noticia, slideUrl, onClose }: { noticia: Noticia; slideUrl?: string; onClose: () => void }) {
+function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => void }) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -588,35 +562,6 @@ function ArticleReader({ noticia, slideUrl, onClose }: { noticia: Noticia; slide
             </p>
           )}
         </header>
-
-        {/* Imagen del Slide Principal */}
-        {slideUrl && (
-          <div style={{
-            width: '100%',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            marginBottom: 40,
-            border: '1px solid var(--border)',
-            backgroundColor: '#0a0a0c',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.4)'
-          }}>
-            <img
-              src={slideUrl}
-              alt={noticia.titulo}
-              onError={(e) => {
-                (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-              }}
-              style={{
-                width: '100%',
-                maxHeight: '520px',
-                objectFit: 'contain'
-              }}
-            />
-          </div>
-        )}
 
         {/* Separador */}
         <div style={{ borderTop: '1px solid var(--border)', marginBottom: 48 }} />

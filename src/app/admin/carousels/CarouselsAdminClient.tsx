@@ -122,10 +122,19 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
     setGeneratingAll(false);
   };
 
+  const getNormalizedUrl = (url: string) => {
+    if (url.startsWith('/')) {
+      const fileName = url.split('/').pop();
+      return `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${fileName}`;
+    }
+    return url;
+  };
+
   const handleDownloadSingle = async (slide: ExtendedSlide) => {
     setDownloadingSingle(prev => ({ ...prev, [slide.id]: true }));
+    const downloadUrl = getNormalizedUrl(slide.image_url);
     try {
-      const response = await fetch(slide.image_url);
+      const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       
@@ -139,7 +148,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Error downloading single image:', err);
-      window.open(slide.image_url, '_blank');
+      window.open(downloadUrl, '_blank');
     } finally {
       setDownloadingSingle(prev => ({ ...prev, [slide.id]: false }));
     }
@@ -156,7 +165,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       const todayStr = new Date().toISOString().split('T')[0];
 
       const fetchPromises = categorySlides.map(async (slide, idx) => {
-        const response = await fetch(slide.image_url);
+        const downloadUrl = getNormalizedUrl(slide.image_url);
+        const response = await fetch(downloadUrl);
         const blob = await response.blob();
         const cleanTitle = (slide.noticia?.titulo || `slide_${idx}`)
           .toLowerCase()
@@ -771,17 +781,26 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                               </button>
                             </div>
                           ) : null}
-                          <img
-                            src={`${slide.image_url}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`}
-                            alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
-                            onError={() => setImageErrors(prev => ({ ...prev, [slide.id]: true }))}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              display: imageErrors[slide.id] ? 'none' : 'block'
-                            }}
-                          />
+                          {(() => {
+                            let displayUrl = slide.image_url;
+                            if (displayUrl.startsWith('/')) {
+                              const fileName = displayUrl.split('/').pop();
+                              displayUrl = `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${fileName}`;
+                            }
+                            return (
+                              <img
+                                src={`${displayUrl}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`}
+                                alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
+                                onError={() => setImageErrors(prev => ({ ...prev, [slide.id]: true }))}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                  display: imageErrors[slide.id] ? 'none' : 'block'
+                                }}
+                              />
+                            );
+                          })()}
                         </div>
 
                         {/* Meta info */}
