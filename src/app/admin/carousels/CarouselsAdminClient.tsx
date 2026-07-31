@@ -782,21 +782,24 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                             </div>
                           ) : null}
                           {(() => {
-                            let displayUrl = slide.image_url;
-                            if (displayUrl.startsWith('/')) {
-                              const fileName = displayUrl.split('/').pop();
-                              displayUrl = `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${fileName}`;
-                            }
+                            const rawFileName = slide.image_url.split('/').pop() || `slide_${slide.categoria}_${slide.noticia_id || 'default'}_today.jpg`;
+                            const cdnUrl = `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
+                            const proxyUrl = `/api/carousel-image/${rawFileName}`;
+                            const finalUrl = imageErrors[slide.id] ? proxyUrl : cdnUrl;
+
                             return (
                               <img
-                                src={`${displayUrl}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`}
+                                src={`${finalUrl}?t=${slide.created_at ? new Date(slide.created_at).getTime() : Date.now()}`}
                                 alt={slide.noticia?.titulo || `TikTok Slide ${idx + 1}`}
-                                onError={() => setImageErrors(prev => ({ ...prev, [slide.id]: true }))}
+                                onError={() => {
+                                  if (!imageErrors[slide.id]) {
+                                    setImageErrors(prev => ({ ...prev, [slide.id]: true }));
+                                  }
+                                }}
                                 style={{
                                   width: '100%',
                                   height: '100%',
-                                  objectFit: 'cover',
-                                  display: imageErrors[slide.id] ? 'none' : 'block'
+                                  objectFit: 'cover'
                                 }}
                               />
                             );
