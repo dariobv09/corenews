@@ -286,10 +286,44 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                 cursor: 'pointer'
               }}
             >
-              <option value="latest">Última Noticia de la Web</option>
+              <option value="latest">Última Noticia de la Web Oficial</option>
               <option value="important">Noticia Importante de los últimos 5 días</option>
               <option value="manual">Ingresar Texto Manual</option>
             </select>
+
+            {/* Listado directo de noticias activas de thecorenews.info */}
+            {sourceType !== 'manual' && todayNoticias && todayNoticias.length > 0 && (
+              <select
+                value={selectedNoticiaId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedNoticiaId(id);
+                  const noticia = todayNoticias.find(n => n.id === id);
+                  if (noticia) {
+                    setContextText(`[${noticia.categoria.toUpperCase()}] ${noticia.titulo}\n\n${noticia.hecho_principal}`);
+                    setGeneratedPrompt('');
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#121214',
+                  border: '1px solid #3b82f6',
+                  color: '#ffffff',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  marginTop: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                {todayNoticias.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    [{n.categoria.toUpperCase()}] {n.titulo.substring(0, 45)}...
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Área de Texto de la Noticia */}
