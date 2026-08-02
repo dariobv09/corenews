@@ -17,7 +17,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
 
-  // Optional manual generator state
+  // Manual Studio State (Optional)
   const [showManualStudio, setShowManualStudio] = useState(false);
   const [contextText, setContextText] = useState('');
   const [artStyle, setArtStyle] = useState('Fotorealista');
@@ -28,23 +28,71 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [manualImageUrl, setManualImageUrl] = useState('');
 
-  // 1. Guardar todas las fotos en iPhone / Galería nativa
+  /**
+   * Smart Download Handler supporting iOS / Mobile native Camera Roll saving
+   * via Web Share API (navigator.share) and Desktop Proxy (/api/download?url=...)
+   */
+  const handleSmartDownload = async (imageUrl: string, customFilename?: string) => {
+    const filename = customFilename || 'noticia-corenews.jpg';
+    try {
+      const isMobileOrIOS = typeof navigator !== 'undefined' && 
+        (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2));
+
+      // 1. Fetch image binary buffer natively from server or proxy
+      const fetchUrl = imageUrl.startsWith('/') ? imageUrl : `/api/download?url=${encodeURIComponent(imageUrl)}`;
+      const res = await fetch(fetchUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+
+      // 2. iOS / Mobile Web Share API path (opens native iPhone "Guardar en Fotos" sheet)
+      if (isMobileOrIOS && typeof navigator !== 'undefined' && navigator.canShare) {
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Guardar Noticia en Fotos',
+            text: 'Imagen destacada de The Core News'
+          });
+          return;
+        }
+      }
+
+      // 3. Desktop / Fallback path using /api/download proxy & ObjectURL blob
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = `/api/download?url=${encodeURIComponent(imageUrl)}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      console.error('[FrontendDownload] Error al procesar descarga:', err);
+      // Direct window open fallback to proxy endpoint
+      window.open(`/api/download?url=${encodeURIComponent(imageUrl)}`, '_blank');
+    }
+  };
+
+  /**
+   * Batch Save for iPhone / Mobile Camera Roll
+   */
   const handleSaveAllNative = async () => {
     if (slides.length === 0) return;
     setIsSavingAll(true);
-    setSaveProgress('Preparando fotos para guardar en Galería...');
+    setSaveProgress('Preparando imágenes para guardar...');
 
     try {
       const filesToShare: File[] = [];
 
       for (let i = 0; i < slides.length; i++) {
         const slide = slides[i];
-        setSaveProgress(`Descargando foto ${i + 1} de ${slides.length}...`);
+        setSaveProgress(`Procesando imagen ${i + 1} de ${slides.length}...`);
         
-        const rawFileName = slide.image_url.split('/').pop() || `slide_${i}.jpg`;
+        const rawFileName = slide.image_url.split('/').pop() || `noticia_${i + 1}.jpg`;
         const directUrl = slide.image_url.startsWith('http')
           ? slide.image_url
-          : `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
+          : `/api/download?url=${encodeURIComponent(slide.image_url)}`;
         
         const response = await fetch(directUrl);
         const arrayBuffer = await response.arrayBuffer();
@@ -52,21 +100,21 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         filesToShare.push(file);
       }
 
-      if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
+      if (typeof navigator !== 'undefined' && navigator.canShare && navigator.canShare({ files: filesToShare })) {
         setSaveProgress('Abriendo menú de iPhone... Selecciona "Guardar X imágenes"');
         await navigator.share({
           files: filesToShare,
-          title: 'Fotos para TikTok',
-          text: 'Fotos generadas por IA para TikTok'
+          title: 'Imágenes de Noticias - The Core News',
+          text: 'Imágenes destacadas en formato vertical 9:16'
         });
-        setSaveProgress('¡Fotos enviadas al menú de guardado!');
+        setSaveProgress('¡Imágenes enviadas al menú de Fotos de iPhone!');
       } else {
-        setSaveProgress('Guardando fotos una a una en descargas...');
+        setSaveProgress('Descargando imágenes una a una...');
         for (let i = 0; i < filesToShare.length; i++) {
           const file = filesToShare[i];
           const blobUrl = URL.createObjectURL(file);
           const a = document.createElement('a');
-          a.href = blobUrl;
+          a.href = `/api/download?url=${encodeURIComponent(slides[i].image_url)}`;
           a.download = file.name;
           document.body.appendChild(a);
           a.click();
@@ -74,45 +122,19 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           URL.revokeObjectURL(blobUrl);
           await new Promise(r => setTimeout(r, 400));
         }
-        setSaveProgress('¡Fotos descargadas!');
+        setSaveProgress('¡Descarga completada!');
       }
     } catch (err: any) {
       console.error('Error guardando en Galería:', err);
-      setSaveProgress('Error al guardar. Prueba descargándolas una a una.');
+      setSaveProgress('Error en guardado masivo. Usa la descarga individual en cada imagen.');
     } finally {
       setIsSavingAll(false);
     }
   };
 
-  // 2. Descarga de foto individual mediante Blob JPEG de 154 KB
-  const handleDownloadSingleBlob = async (slide: ExtendedSlide, index: number) => {
-    try {
-      const rawFileName = slide.image_url.split('/').pop() || `slide_${index}.jpg`;
-      const directUrl = slide.image_url.startsWith('http')
-        ? slide.image_url
-        : `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
-      
-      const res = await fetch(directUrl);
-      const arrayBuffer = await res.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
-      const blobUrl = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `noticia_${index + 1}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error('Error descargando imagen:', err);
-      window.open(slide.image_url, '_blank');
-    }
-  };
-
-  // 3. Generación Manual Opcional
+  // Manual Studio Handlers
   const handleGeneratePromptManual = async () => {
-    if (!contextText.trim()) return alert('Ingresa un texto para el prompt.');
+    if (!contextText.trim()) return alert('Ingresa un texto de noticia para generar el prompt.');
     setIsGeneratingPrompt(true);
     try {
       const res = await fetch('/api/generate-prompt', {
@@ -162,7 +184,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       minHeight: '100vh'
     }}>
       
-      {/* 🚀 BARRA DE ACCIÓN PRINCIPAL SUPER SIMPLE Y AUTOMÁTICA */}
+      {/* BARRA SUPERIOR DE ACCIÓN RÁPIDA */}
       <div style={{
         position: 'sticky',
         top: 0,
@@ -174,7 +196,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           
-          {/* BOTÓN GIGANTE PARA GUARDAR EN GALERÍA EN IPHONE/MÓVIL */}
           <button
             onClick={handleSaveAllNative}
             disabled={isSavingAll || slides.length === 0}
@@ -225,7 +246,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
               cursor: 'pointer'
             }}
           >
-            {showManualStudio ? '✖️ Ocultar Creador Manual' : '✨ Generar Foto Personalizada con IA'}
+            {showManualStudio ? '✖️ Ocultar Creador Manual' : '✨ Generar Imagen Personalizada DALL-E'}
           </button>
         </div>
 
@@ -236,7 +257,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         )}
       </div>
 
-      {/* 🛠️ CREADOR MANUAL OPCIONAL (SI EL USUARIO QUIERE CREAR UNA FOTO CON PROMPT PROPIO) */}
+      {/* ESTUDIO MANUAL OPCIONAL */}
       {showManualStudio && (
         <div style={{
           backgroundColor: '#121214',
@@ -249,14 +270,14 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           gap: '16px'
         }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#3b82f6' }}>
-            ✨ Estudió de Creación Manual con Prompt Personalizado (DALL-E 3)
+            ✨ Estudio de Generación de Imagen Individual por Noticia (DALL-E 3)
           </h3>
           
           <textarea
             rows={3}
             value={contextText}
             onChange={(e) => setContextText(e.target.value)}
-            placeholder="Ingresa la noticia o idea para la foto..."
+            placeholder="Escribe el texto de la noticia para generar su imagen destacada..."
             style={{
               backgroundColor: '#18181b',
               border: '1px solid #27272a',
@@ -310,21 +331,37 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           )}
 
           {manualImageUrl && (
-            <div style={{ width: '220px', aspectRatio: '9/16', borderRadius: '12px', overflow: 'hidden', border: '2px solid #3b82f6', marginTop: '12px' }}>
-              <img src={manualImageUrl} alt="Resultado manual" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '240px' }}>
+              <div style={{ width: '100%', aspectRatio: '9/16', borderRadius: '12px', overflow: 'hidden', border: '2px solid #3b82f6' }}>
+                <img src={manualImageUrl} alt="Resultado manual" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+              <button
+                onClick={() => handleSmartDownload(manualImageUrl, 'noticia-personalizada.jpg')}
+                style={{
+                  backgroundColor: '#22c55e',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                ⬇️ Guardar en Galería / Descargar
+              </button>
             </div>
           )}
         </div>
       )}
 
-      {/* 📷 VISTA PRINCIPAL: GRID AUTOMÁTICO CON TODAS LAS FOTOS LISTAS PARA TIKTOK */}
+      {/* GALERÍA PRINCIPAL DE IMÁGENES DESTACADAS POR NOTICIA */}
       <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#a1a1aa', marginBottom: '16px', letterSpacing: '0.05em' }}>
-        FOTOS GENERADAS AUTOMÁTICAMENTE PARA TIKTOK ({slides.length})
+        IMÁGENES DESTACADAS DE NOTICIAS DE HOY ({slides.length})
       </h2>
 
       {slides.length === 0 ? (
         <div style={{ padding: '60px 0', textAlign: 'center', fontSize: '18px', color: '#a1a1aa' }}>
-          Cargando fotos del servidor... Si no aparecen, pulsa Actualizar.
+          Cargando imágenes del servidor... Si no aparecen, pulsa Actualizar.
         </div>
       ) : (
         <div style={{
@@ -333,11 +370,10 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           gap: '28px'
         }}>
           {slides.map((slide, idx) => {
-            const rawFileName = slide.image_url.split('/').pop() || `slide_${idx}.jpg`;
+            const rawFileName = slide.image_url.split('/').pop() || `noticia_${idx + 1}.jpg`;
             const directUrl = slide.image_url.startsWith('http')
               ? slide.image_url
-              : `https://bnywcdwwqdcyztqguios.supabase.co/storage/v1/object/public/tiktok-carousel/${rawFileName}`;
-            const proxyUrl = `/api/carousel-image/${rawFileName}`;
+              : `/api/download?url=${encodeURIComponent(slide.image_url)}`;
 
             return (
               <div key={slide.id || idx} style={{
@@ -354,10 +390,11 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                 <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000000', position: 'relative' }}>
                   <img
                     src={directUrl}
-                    alt={slide.noticia?.titulo || `Foto TikTok ${idx + 1}`}
+                    alt={slide.noticia?.titulo || `Imagen Noticia ${idx + 1}`}
                     onError={(e) => {
-                      if (e.currentTarget.src !== proxyUrl) {
-                        e.currentTarget.src = proxyUrl;
+                      const fallbackProxy = `/api/download?url=${encodeURIComponent(slide.image_url)}`;
+                      if (e.currentTarget.src !== fallbackProxy) {
+                        e.currentTarget.src = fallbackProxy;
                       }
                     }}
                     style={{
@@ -369,14 +406,14 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                   />
                 </div>
 
-                {/* PIE CON DESCARGA EN 1 CLIC */}
+                {/* BOTÓN DE DESCARGA E INTELIGENCIA DE GUARDADO PARA IPHONE Y NAVEGADOR */}
                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#ffffff', lineHeight: 1.4 }}>
                     {idx + 1}. {slide.noticia?.titulo}
                   </p>
 
                   <button
-                    onClick={() => handleDownloadSingleBlob(slide, idx)}
+                    onClick={() => handleSmartDownload(slide.image_url, `noticia_${idx + 1}.jpg`)}
                     style={{
                       backgroundColor: '#22c55e', // Green HD
                       color: '#ffffff',
@@ -393,7 +430,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                       boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)'
                     }}
                   >
-                    ⬇️ DESCARGAR FOTO {idx + 1} (JPEG HD)
+                    📱 Guardar en Fotos / Descargar (JPEG)
                   </button>
                 </div>
 

@@ -136,6 +136,6 @@ export async function createNewsSlide(
   return await sharp(bgImageBuffer)
     .resize(width, height, { fit: 'cover', position: 'center' })
     .composite(compositeQueue)
-    .jpeg({ quality: 90 })
+    .jpeg({ quality: 90, progressive: true })
     .toBuffer();
 }

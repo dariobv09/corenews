@@ -12,20 +12,20 @@ import path from 'path';
 export async function ensureStorageBucket(log?: (m: string) => void): Promise<boolean> {
   if (!isSupabaseConfigured() || !supabaseAdmin) return false;
   try {
-    const bucketName = 'tiktok-carousel';
+    const bucketName = 'news-images';
     const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
     if (listError) throw listError;
 
-    const exists = buckets.some((b) => b.name === bucketName);
+    const exists = buckets.some((b) => b.name === bucketName || b.name === 'tiktok-carousel');
     if (!exists) {
-      log?.(`[SocialPublisher] Creando el bucket público 'tiktok-carousel' en Supabase Storage...`);
+      log?.(`[SocialPublisher] Creando el bucket público 'news-images' en Supabase Storage...`);
       const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
         public: true,
         allowedMimeTypes: ['image/jpeg'],
-        fileSizeLimit: 6291456 // 6MB
+        fileSizeLimit: 10485760 // 10MB
       });
       if (createError) throw createError;
-      log?.(`[SocialPublisher] ✓ Bucket 'tiktok-carousel' creado con éxito.`);
+      log?.(`[SocialPublisher] ✓ Bucket 'news-images' creado con éxito.`);
     }
     return true;
   } catch (err: any) {
@@ -43,20 +43,35 @@ export async function saveSlideImage(
   buffer: Buffer,
   log?: (m: string) => void
 ): Promise<string | null> {
-  const fileName = `slide_${noticia.categoria}_${noticia.id}_${todayStr}.jpg`;
+  const fileName = `news_${noticia.categoria}_${noticia.id}_${todayStr}.jpg`;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bnywcdwwqdcyztqguios.supabase.co';
-  const publicCdnUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${fileName}`;
+  
+  // Try news-images bucket first, with fallback to tiktok-carousel
+  const targetBucket = 'news-images';
+  const publicCdnUrl = `${supabaseUrl}/storage/v1/object/public/${targetBucket}/${fileName}`;
 
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      log?.(`[SocialPublisher] Subiendo imagen a Supabase Storage: ${fileName}...`);
+      log?.(`[SocialPublisher] Subiendo imagen a Supabase Storage (${targetBucket}): ${fileName}...`);
       const { error } = await supabaseAdmin.storage
-        .from('tiktok-carousel')
+        .from(targetBucket)
         .upload(fileName, buffer, {
           contentType: 'image/jpeg',
+          cacheControl: '3600',
           upsert: true
         });
-      if (error) throw error;
+      
+      if (error) {
+        // Fallback upload to tiktok-carousel if news-images bucket not yet created
+        await supabaseAdmin.storage
+          .from('tiktok-carousel')
+          .upload(fileName, buffer, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600',
+            upsert: true
+          });
+        return `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${fileName}`;
+      }
 
       log?.(`[SocialPublisher] ✓ Subida exitosa. URL: ${publicCdnUrl}`);
       return publicCdnUrl;
