@@ -17,7 +17,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
-  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   // Manual Studio State (Optional)
   const [showManualStudio, setShowManualStudio] = useState(false);
@@ -30,7 +29,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [manualImageUrl, setManualImageUrl] = useState('');
 
-  // Auto sync slides from prop changes
+  // Sync slides on prop change
   useEffect(() => {
     setSlides(initialSlides);
   }, [initialSlides]);
@@ -65,7 +64,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         }
       }
 
-      // 3. Desktop / Fallback path using /api/download proxy & ObjectURL blob
+      // 3. Desktop / Fallback path using ObjectURL blob
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -76,7 +75,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       console.error('[FrontendDownload] Error al procesar descarga:', err);
-      // Direct window open fallback to download proxy
       window.open(`/api/download?url=${encodeURIComponent(imageUrl)}`, '_blank');
     }
   };
@@ -374,11 +372,9 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         }}>
           {slides.map((slide, idx) => {
             const rawFileName = slide.image_url.split('/').pop() || `noticia_${idx + 1}.jpg`;
-            const directUrl = slide.image_url;
-            const inlineProxyUrl = `/api/carousel-image/${rawFileName}`;
+            const displayUrl = `/api/carousel-image/${rawFileName}`;
             const keyId = slide.id || `slide_${idx}`;
             const isLoaded = loadedImages[keyId];
-            const isFailed = failedImages[keyId];
 
             return (
               <div key={keyId} style={{
@@ -402,8 +398,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  {/* SKELETON / LOADING UI TO PREVENT BLACK BOX */}
-                  {!isLoaded && !isFailed && (
+                  {/* SKELETON / LOADING UI WHILE FETCHING */}
+                  {!isLoaded && (
                     <div style={{
                       position: 'absolute',
                       inset: 0,
@@ -431,20 +427,19 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                     </div>
                   )}
 
-                  {/* INLINE IMAGE */}
+                  {/* SAME-ORIGIN INLINE PROXY IMAGE */}
                   <img
-                    src={directUrl}
+                    src={displayUrl}
                     alt={slide.noticia?.titulo || `Imagen Noticia ${idx + 1}`}
                     onLoad={() => {
                       setLoadedImages(prev => ({ ...prev, [keyId]: true }));
                     }}
                     onError={(e) => {
-                      // Fallback to inline proxy without attachment header
-                      if (e.currentTarget.src !== inlineProxyUrl && !inlineProxyUrl.includes('undefined')) {
-                        e.currentTarget.src = inlineProxyUrl;
-                      } else {
-                        setFailedImages(prev => ({ ...prev, [keyId]: true }));
+                      // If proxy fails, try direct URL as fallback and dismiss spinner
+                      if (e.currentTarget.src !== slide.image_url) {
+                        e.currentTarget.src = slide.image_url;
                       }
+                      setLoadedImages(prev => ({ ...prev, [keyId]: true }));
                     }}
                     style={{
                       width: '100%',
@@ -452,7 +447,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                       objectFit: 'cover',
                       display: 'block',
                       opacity: isLoaded ? 1 : 0.01,
-                      transition: 'opacity 0.3s ease-in-out'
+                      transition: 'opacity 0.2s ease-in-out'
                     }}
                   />
                 </div>
