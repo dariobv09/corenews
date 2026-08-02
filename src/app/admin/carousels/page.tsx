@@ -191,6 +191,26 @@ export default async function CarouselsAdminPage() {
           })
           .filter(Boolean) as ExtendedSlide[];
       }
+
+      if (slides.length === 0) {
+        const { data: allRecentSlides } = await supabaseAdmin
+          .from('carousel_slides')
+          .select('*, noticias(*)')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (allRecentSlides && allRecentSlides.length > 0) {
+          slides = allRecentSlides.map((s: any) => ({
+            id: s.id,
+            noticia_id: s.noticia_id,
+            categoria: s.categoria,
+            slide_order: 0,
+            image_url: s.image_url,
+            created_at: s.created_at,
+            noticia: s.noticias
+          }));
+        }
+      }
     } catch (err) {
       console.error('Error fetching carousels data from Supabase:', err);
     }
