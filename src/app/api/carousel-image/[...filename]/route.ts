@@ -21,10 +21,16 @@ export async function GET(
 
     const cleanFilename = fullFilename.split('?')[0];
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bnywcdwwqdcyztqguios.supabase.co';
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${cleanFilename}`;
 
-    // 1. Try to fetch existing image from Supabase CDN
-    const res = await fetch(publicUrl);
+    // 1. Try to fetch existing image from 'news-images' or 'tiktok-carousel' bucket
+    let publicUrl = `${supabaseUrl}/storage/v1/object/public/news-images/${cleanFilename}`;
+    let res = await fetch(publicUrl);
+
+    if (!res.ok) {
+      publicUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${cleanFilename}`;
+      res = await fetch(publicUrl);
+    }
+
     if (res.ok) {
       const arrayBuffer = await res.arrayBuffer();
       return new Response(arrayBuffer, {
@@ -36,9 +42,9 @@ export async function GET(
       });
     }
 
-    // 2. Self-Healing Fallback: If image is missing, attempt auto-generation using noticia ID from filename
+    // 2. Self-Healing Fallback: Auto-generate if missing
     console.log(`[ProxyImage] Image missing in storage: ${cleanFilename}. Attempting auto-generation...`);
-    const match = cleanFilename.match(/slide_[^_]+_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+    const match = cleanFilename.match(/(?:slide|news)_[^_]+_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
     
     if (match && match[1] && supabaseAdmin) {
       const noticiaId = match[1];

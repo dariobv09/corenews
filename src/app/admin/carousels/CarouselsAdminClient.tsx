@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CarouselSlide, Noticia } from '@/types';
 
 interface ExtendedSlide extends CarouselSlide {
@@ -16,6 +16,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [slides, setSlides] = useState<ExtendedSlide[]>(initialSlides);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   // Manual Studio State (Optional)
   const [showManualStudio, setShowManualStudio] = useState(false);
@@ -28,6 +30,11 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [manualImageUrl, setManualImageUrl] = useState('');
 
+  // Auto sync slides from prop changes
+  useEffect(() => {
+    setSlides(initialSlides);
+  }, [initialSlides]);
+
   /**
    * Smart Download Handler supporting iOS / Mobile native Camera Roll saving
    * via Web Share API (navigator.share) and Desktop Proxy (/api/download?url=...)
@@ -39,9 +46,9 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
          (navigator.maxTouchPoints && navigator.maxTouchPoints > 2));
 
-      // 1. Fetch image binary buffer natively from server or proxy
-      const fetchUrl = imageUrl.startsWith('/') ? imageUrl : `/api/download?url=${encodeURIComponent(imageUrl)}`;
-      const res = await fetch(fetchUrl);
+      // 1. Fetch image binary buffer natively from download proxy
+      const downloadProxyUrl = `/api/download?url=${encodeURIComponent(imageUrl)}`;
+      const res = await fetch(downloadProxyUrl);
       const arrayBuffer = await res.arrayBuffer();
       const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
 
@@ -61,7 +68,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       // 3. Desktop / Fallback path using /api/download proxy & ObjectURL blob
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = `/api/download?url=${encodeURIComponent(imageUrl)}`;
+      link.href = blobUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -69,7 +76,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
       URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       console.error('[FrontendDownload] Error al procesar descarga:', err);
-      // Direct window open fallback to proxy endpoint
+      // Direct window open fallback to download proxy
       window.open(`/api/download?url=${encodeURIComponent(imageUrl)}`, '_blank');
     }
   };
@@ -89,12 +96,8 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         const slide = slides[i];
         setSaveProgress(`Procesando imagen ${i + 1} de ${slides.length}...`);
         
-        const rawFileName = slide.image_url.split('/').pop() || `noticia_${i + 1}.jpg`;
-        const directUrl = slide.image_url.startsWith('http')
-          ? slide.image_url
-          : `/api/download?url=${encodeURIComponent(slide.image_url)}`;
-        
-        const response = await fetch(directUrl);
+        const downloadProxyUrl = `/api/download?url=${encodeURIComponent(slide.image_url)}`;
+        const response = await fetch(downloadProxyUrl);
         const arrayBuffer = await response.arrayBuffer();
         const file = new File([arrayBuffer], `noticia_${i + 1}.jpg`, { type: 'image/jpeg' });
         filesToShare.push(file);
@@ -114,7 +117,7 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           const file = filesToShare[i];
           const blobUrl = URL.createObjectURL(file);
           const a = document.createElement('a');
-          a.href = `/api/download?url=${encodeURIComponent(slides[i].image_url)}`;
+          a.href = blobUrl;
           a.download = file.name;
           document.body.appendChild(a);
           a.click();
@@ -371,12 +374,14 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
         }}>
           {slides.map((slide, idx) => {
             const rawFileName = slide.image_url.split('/').pop() || `noticia_${idx + 1}.jpg`;
-            const directUrl = slide.image_url.startsWith('http')
-              ? slide.image_url
-              : `/api/download?url=${encodeURIComponent(slide.image_url)}`;
+            const directUrl = slide.image_url;
+            const inlineProxyUrl = `/api/carousel-image/${rawFileName}`;
+            const keyId = slide.id || `slide_${idx}`;
+            const isLoaded = loadedImages[keyId];
+            const isFailed = failedImages[keyId];
 
             return (
-              <div key={slide.id || idx} style={{
+              <div key={keyId} style={{
                 border: '1px solid #1f1f23',
                 borderRadius: '16px',
                 overflow: 'hidden',
@@ -387,21 +392,67 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
               }}>
                 
                 {/* MARCO VERTICAL 9:16 EN ALTA RESOLUCIÓN */}
-                <div style={{ width: '100%', aspectRatio: '9/16', backgroundColor: '#000000', position: 'relative' }}>
+                <div style={{
+                  width: '100%',
+                  aspectRatio: '9/16',
+                  backgroundColor: '#18181b',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {/* SKELETON / LOADING UI TO PREVENT BLACK BOX */}
+                  {!isLoaded && !isFailed && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundColor: '#18181b',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '24px',
+                      textAlign: 'center',
+                      gap: '12px',
+                      zIndex: 1
+                    }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        border: '3px solid #3b82f6',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>
+                        Cargando imagen HD...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* INLINE IMAGE */}
                   <img
                     src={directUrl}
                     alt={slide.noticia?.titulo || `Imagen Noticia ${idx + 1}`}
+                    onLoad={() => {
+                      setLoadedImages(prev => ({ ...prev, [keyId]: true }));
+                    }}
                     onError={(e) => {
-                      const fallbackProxy = `/api/download?url=${encodeURIComponent(slide.image_url)}`;
-                      if (e.currentTarget.src !== fallbackProxy) {
-                        e.currentTarget.src = fallbackProxy;
+                      // Fallback to inline proxy without attachment header
+                      if (e.currentTarget.src !== inlineProxyUrl && !inlineProxyUrl.includes('undefined')) {
+                        e.currentTarget.src = inlineProxyUrl;
+                      } else {
+                        setFailedImages(prev => ({ ...prev, [keyId]: true }));
                       }
                     }}
                     style={{
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
-                      display: 'block'
+                      display: 'block',
+                      opacity: isLoaded ? 1 : 0.01,
+                      transition: 'opacity 0.3s ease-in-out'
                     }}
                   />
                 </div>
@@ -439,6 +490,13 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           })}
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
