@@ -16,7 +16,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
   const [slides, setSlides] = useState<ExtendedSlide[]>(initialSlides);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
-  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   // Manual Studio State (Optional)
   const [showManualStudio, setShowManualStudio] = useState(false);
@@ -374,7 +373,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
             const rawFileName = slide.image_url.split('/').pop() || `noticia_${idx + 1}.jpg`;
             const displayUrl = `/api/carousel-image/${rawFileName}`;
             const keyId = slide.id || `slide_${idx}`;
-            const isLoaded = loadedImages[keyId];
 
             return (
               <div key={keyId} style={{
@@ -393,61 +391,23 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
                   aspectRatio: '9/16',
                   backgroundColor: '#18181b',
                   position: 'relative',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  overflow: 'hidden'
                 }}>
-                  {/* SKELETON / LOADING UI WHILE FETCHING */}
-                  {!isLoaded && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backgroundColor: '#18181b',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '24px',
-                      textAlign: 'center',
-                      gap: '12px',
-                      zIndex: 1
-                    }}>
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        border: '3px solid #3b82f6',
-                        borderTopColor: 'transparent',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#a1a1aa' }}>
-                        Cargando imagen HD...
-                      </span>
-                    </div>
-                  )}
-
-                  {/* SAME-ORIGIN INLINE PROXY IMAGE */}
+                  {/* DIRECT INLINE IMAGE RENDER (NO OVERLAY COVERING IT) */}
                   <img
                     src={displayUrl}
                     alt={slide.noticia?.titulo || `Imagen Noticia ${idx + 1}`}
-                    onLoad={() => {
-                      setLoadedImages(prev => ({ ...prev, [keyId]: true }));
-                    }}
                     onError={(e) => {
-                      // If proxy fails, try direct URL as fallback and dismiss spinner
+                      // Fallback to direct CDN URL if proxy fails
                       if (e.currentTarget.src !== slide.image_url) {
                         e.currentTarget.src = slide.image_url;
                       }
-                      setLoadedImages(prev => ({ ...prev, [keyId]: true }));
                     }}
                     style={{
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
-                      display: 'block',
-                      opacity: isLoaded ? 1 : 0.01,
-                      transition: 'opacity 0.2s ease-in-out'
+                      display: 'block'
                     }}
                   />
                 </div>
@@ -485,13 +445,6 @@ export default function CarouselsAdminClient({ initialSlides, todayNoticias }: C
           })}
         </div>
       )}
-
-      <style jsx global>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
