@@ -283,7 +283,7 @@ export async function getBgImageForNews(
     openai = new OpenAI({ apiKey });
   }
 
-  // 1. Intentar DALL-E 3
+  // 1. Intentar DALL-E 3 (con timeout de 4.5s para no bloquear serverless Vercel)
   if (openai) {
     try {
       const visualPrompt = customPrompt && customPrompt.trim().length > 0 
@@ -292,7 +292,7 @@ export async function getBgImageForNews(
 
       log?.(`[MediaScraper] [DALL-E 3] Generando imagen de fondo con prompt: "${visualPrompt.substring(0, 60)}..."`);
       
-      const response = await openai.images.generate({
+      const generatePromise = openai.images.generate({
         model: 'dall-e-3',
         prompt: visualPrompt,
         n: 1,
@@ -300,13 +300,18 @@ export async function getBgImageForNews(
         quality: 'standard'
       });
 
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('DALL-E timeout (exceeded 4.5s limit)')), 4500)
+      );
+
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
       const imageUrl = response.data?.[0]?.url;
       if (imageUrl) {
         log?.('[MediaScraper] [DALL-E 3] ✓ Imagen generada exitosamente.');
         return await downloadImage(imageUrl, log);
       }
     } catch (err: any) {
-      log?.(`[MediaScraper] [DALL-E 3] ⚠ Falló la generación. Detalle: ${err.message || err}.`);
+      log?.(`[MediaScraper] [DALL-E 3] ⚠ Falló o excedió tiempo límite. Usando fallback visual instantáneo. Detalle: ${err.message || err}.`);
     }
   }
 

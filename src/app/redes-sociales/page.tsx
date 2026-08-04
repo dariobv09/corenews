@@ -160,6 +160,7 @@ export default async function RedesSocialesPage() {
         todayNoticias = recentNews || [];
       }
 
+      const existingSlideMap = new Map<string, any>();
       const activeNewsIds = todayNoticias.map((n) => n.id);
       if (activeNewsIds.length > 0) {
         const { data: slidesData } = await supabaseAdmin
@@ -168,7 +169,6 @@ export default async function RedesSocialesPage() {
           .in('noticia_id', activeNewsIds)
           .order('created_at', { ascending: false });
 
-        const existingSlideMap = new Map<string, any>();
         if (slidesData) {
           slidesData.forEach((s: any) => {
             if (s.noticia_id && s.image_url && !s.image_url.startsWith('/')) {
@@ -176,43 +176,25 @@ export default async function RedesSocialesPage() {
             }
           });
         }
-
-        slides = (todayNoticias || [])
-          .map((n) => {
-            const existing = existingSlideMap.get(n.id);
-            if (!existing) return null;
-            return {
-              id: existing.id,
-              noticia_id: n.id,
-              categoria: n.categoria,
-              slide_order: 0,
-              image_url: existing.image_url,
-              created_at: existing.created_at,
-              noticia: n
-            };
-          })
-          .filter(Boolean) as ExtendedSlide[];
       }
 
-      if (slides.length === 0) {
-        const { data: allRecentSlides } = await supabaseAdmin
-          .from('carousel_slides')
-          .select('*, noticias(*)')
-          .order('created_at', { ascending: false })
-          .limit(20);
+      // Map EVERY single news item to a slide so ALL news display visually on the web
+      slides = todayNoticias.map((n) => {
+        const existing = existingSlideMap.get(n.id);
+        const imageUrl = (existing && existing.image_url && !existing.image_url.startsWith('/'))
+          ? existing.image_url
+          : `/api/social-image/news_${n.categoria}_${n.id}.jpg`;
 
-        if (allRecentSlides && allRecentSlides.length > 0) {
-          slides = allRecentSlides.map((s: any) => ({
-            id: s.id,
-            noticia_id: s.noticia_id,
-            categoria: s.categoria,
-            slide_order: 0,
-            image_url: s.image_url,
-            created_at: s.created_at,
-            noticia: s.noticias
-          }));
-        }
-      }
+        return {
+          id: existing?.id || `slide_${n.id}`,
+          noticia_id: n.id,
+          categoria: n.categoria,
+          slide_order: 0,
+          image_url: imageUrl,
+          created_at: existing?.created_at || new Date().toISOString(),
+          noticia: n
+        };
+      });
     } catch (err) {
       console.error('Error fetching social media images data from Supabase:', err);
     }

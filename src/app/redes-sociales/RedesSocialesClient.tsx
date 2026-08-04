@@ -382,8 +382,10 @@ export default function RedesSocialesClient({ initialSlides, todayNoticias }: Re
           gap: '28px'
         }}>
           {slides.map((slide, idx) => {
-            const rawFileName = slide.image_url.split('/').pop() || `noticia_${idx + 1}.jpg`;
-            const displayUrl = `/api/social-image/${rawFileName}`;
+            const rawFileName = slide.image_url.split('/').pop() || `news_${slide.categoria}_${slide.noticia_id}.jpg`;
+            const displayUrl = (slide.image_url && slide.image_url.startsWith('http'))
+              ? slide.image_url
+              : `/api/social-image/${rawFileName}`;
             const keyId = slide.id || `slide_${idx}`;
 
             return (
@@ -409,8 +411,15 @@ export default function RedesSocialesClient({ initialSlides, todayNoticias }: Re
                     src={displayUrl}
                     alt={slide.noticia?.titulo || `Imagen Noticia ${idx + 1}`}
                     onError={(e) => {
-                      if (e.currentTarget.src !== slide.image_url) {
-                        e.currentTarget.src = slide.image_url;
+                      const target = e.currentTarget;
+                      if (target.src.includes('supabase.co')) {
+                        // Fallback to local API proxy generator
+                        target.src = `/api/social-image/news_${slide.categoria}_${slide.noticia_id}.jpg`;
+                      } else if (!target.src.includes('retry=1')) {
+                        // Retry after 1.5s in case backend auto-generation was in progress
+                        setTimeout(() => {
+                          target.src = `/api/social-image/news_${slide.categoria}_${slide.noticia_id}.jpg?retry=1`;
+                        }, 1500);
                       }
                     }}
                     style={{
