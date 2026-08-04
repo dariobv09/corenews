@@ -68,27 +68,26 @@ function createSvgOverlay(
     <rect x="0" y="${height * 0.40}" width="${width}" height="${height * 0.60}" fill="url(#bottomOverlay)" />
   `;
 
-  // Draw header brand info with Poppins font
+  // Draw header brand info with Poppins font family specification
   const brandSvg = `
-    <text x="160" y="94" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="800" font-size="28" fill="#ffffff" letter-spacing="-0.02em">the core news</text>
-    <text x="160" y="122" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="600" font-size="13" fill="#a1a1aa" letter-spacing="0.1em">REDES SOCIALES • VERIFICADO</text>
+    <text x="160" y="94" font-family="'Poppins', 'Montserrat', 'Inter', sans-serif" font-weight="800" font-size="28" fill="#ffffff" letter-spacing="-0.02em">the core news</text>
+    <text x="160" y="122" font-family="'Poppins', 'Montserrat', 'Inter', sans-serif" font-weight="600" font-size="13" fill="#a1a1aa" letter-spacing="0.1em">REDES SOCIALES • VERIFICADO</text>
   `;
 
-  // Position title inside the lower half with Poppins font matching user requirement
+  // Position title inside lower half with Poppins typography
   const lineSpacing = 68;
   const totalTextHeight = titleLines.length * lineSpacing;
   const textStartY = height - 130 - totalTextHeight;
 
   const titleSvg = titleLines.map((line, idx) => 
-    `<text x="70" y="${textStartY + idx * lineSpacing}" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="800" font-size="54" fill="#ffffff" letter-spacing="-0.02em">${escapeXml(line)}</text>`
+    `<text x="70" y="${textStartY + idx * lineSpacing}" font-family="'Poppins', 'Montserrat', 'Inter', sans-serif" font-weight="800" font-size="54" fill="#ffffff" letter-spacing="-0.02em">${escapeXml(line)}</text>`
   ).join('');
 
   return `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&amp;display=swap');
         text {
-          font-family: 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+          font-family: 'Poppins', 'Montserrat', 'Inter', system-ui, -apple-system, sans-serif;
         }
       </style>
       ${backgroundOverlay}
@@ -114,6 +113,25 @@ async function createCorporateLogo(): Promise<Buffer> {
 }
 
 /**
+ * Fallback dark gradient image when background fetch fails or is corrupt
+ */
+function createFallbackGradientBackground(width: number, height: number): Buffer {
+  const svgBg = `
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0f172a" />
+          <stop offset="50%" stop-color="#1e1b4b" />
+          <stop offset="100%" stop-color="#020617" />
+        </linearGradient>
+      </defs>
+      <rect width="${width}" height="${height}" fill="url(#bgGrad)" />
+    </svg>
+  `;
+  return Buffer.from(svgBg);
+}
+
+/**
  * Composites the background image, round logo, and SVG texts into a final high-quality JPEG
  */
 export async function createNewsSlide(
@@ -126,22 +144,39 @@ export async function createNewsSlide(
 
   log?.(`[SharpDesigner] Componiendo imagen final para: "${noticia.titulo.substring(0, 40)}..."`);
 
-  // 1. Prepare Circular Logo
-  const logoBuffer = await createCorporateLogo();
+  try {
+    const logoBuffer = await createCorporateLogo();
+    const overlaySvgString = createSvgOverlay(noticia.titulo, width, height);
+    const overlayBuffer = Buffer.from(overlaySvgString);
 
-  // 2. Generate SVG Overlay (Text and Gradients)
-  const overlaySvgString = createSvgOverlay(noticia.titulo, width, height);
-  const overlayBuffer = Buffer.from(overlaySvgString);
+    const compositeQueue: any[] = [
+      { input: overlayBuffer, top: 0, left: 0 },
+      { input: logoBuffer, top: 60, left: 60 }
+    ];
 
-  // 3. Composite everything together
-  const compositeQueue: any[] = [
-    { input: overlayBuffer, top: 0, left: 0 },
-    { input: logoBuffer, top: 60, left: 60 }
-  ];
+    let baseBuffer = bgImageBuffer;
+    if (!baseBuffer || baseBuffer.length < 100) {
+      baseBuffer = createFallbackGradientBackground(width, height);
+    }
 
-  return await sharp(bgImageBuffer)
-    .resize(width, height, { fit: 'cover', position: 'center' })
-    .composite(compositeQueue)
-    .jpeg({ quality: 90, progressive: true })
-    .toBuffer();
+    return await sharp(baseBuffer)
+      .resize(width, height, { fit: 'cover', position: 'center' })
+      .composite(compositeQueue)
+      .jpeg({ quality: 90, progressive: true })
+      .toBuffer();
+  } catch (err: any) {
+    log?.(`[SharpDesigner] ⚠ Error componiendo con Sharp: ${err.message || err}. Usando fallback SVG completo.`);
+    // Emergency pure SVG composite
+    const logoBuffer = await createCorporateLogo();
+    const overlaySvgString = createSvgOverlay(noticia.titulo, width, height);
+    const fallbackBg = createFallbackGradientBackground(width, height);
+
+    return await sharp(fallbackBg)
+      .composite([
+        { input: Buffer.from(overlaySvgString), top: 0, left: 0 },
+        { input: logoBuffer, top: 60, left: 60 }
+      ])
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  }
 }

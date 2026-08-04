@@ -12,6 +12,23 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ filename: string[] }> }
 ) {
+  let fallbackNoticia: Noticia = {
+    id: 'emergency_fallback',
+    categoria: 'ia',
+    importancia: 'Alta',
+    titulo: 'The Core News — Noticias de hoy',
+    subtitulo: 'Análisis verificado',
+    hecho_principal: 'Actualizaciones principales de hoy',
+    desarrollo: '',
+    actores: 'General',
+    contexto: '',
+    datos_verificables: '',
+    estado_actual: '',
+    declaraciones: '',
+    consecuencias: '',
+    fecha_actualizacion: new Date().toISOString()
+  };
+
   try {
     const rawParams = await params;
     const filenameArray = rawParams?.filename || [];
@@ -30,26 +47,29 @@ export async function GET(
       ? cleanFilename 
       : `${supabaseUrl}/storage/v1/object/public/news-images/${filenameOnly}`;
     
-    let res = await fetch(targetUrl);
+    try {
+      let res = await fetch(targetUrl);
+      if (!res.ok && !cleanFilename.startsWith('http')) {
+        targetUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${filenameOnly}`;
+        res = await fetch(targetUrl);
+      }
 
-    if (!res.ok && !cleanFilename.startsWith('http')) {
-      targetUrl = `${supabaseUrl}/storage/v1/object/public/tiktok-carousel/${filenameOnly}`;
-      res = await fetch(targetUrl);
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer();
+        return new Response(arrayBuffer, {
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200'
+          }
+        });
+      }
+    } catch (e) {
+      // Ignore fetch error and proceed to instant generation
     }
 
-    if (res.ok) {
-      const arrayBuffer = await res.arrayBuffer();
-      return new Response(arrayBuffer, {
-        headers: {
-          'Content-Type': 'image/jpeg',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=43200'
-        }
-      });
-    }
-
-    // 2. Self-Healing Fallback: Auto-generate on-demand so NO IMAGE EVER FAILS (100% Reliable)
-    console.log(`[SocialImageProxy] Image missing in storage: ${filenameOnly}. Attempting instant auto-generation...`);
+    // 2. Self-Healing Fallback: Auto-generate on-demand so NO IMAGE EVER FAILS (100% Guaranteed Image Output)
+    console.log(`[SocialImageProxy] Auto-generating image for: ${filenameOnly}`);
     let noticia: Noticia | null = null;
 
     // A) Try UUID match
@@ -69,7 +89,6 @@ export async function GET(
     if (!noticia) {
       const cleanNoExt = filenameOnly.replace(/\.[^/.]+$/, "");
       const parts = cleanNoExt.split('_');
-      // Look for a part that looks like an ID
       for (const part of parts) {
         if (part && part !== 'news' && part !== 'slide' && part !== 'today' && part.length > 2) {
           if (isSupabaseConfigured() && supabaseAdmin) {
@@ -109,35 +128,16 @@ export async function GET(
       }
     }
 
-    // If still no noticia found in DB, construct emergency dummy noticia
-    if (!noticia) {
-      noticia = {
-        id: 'emergency_noticia',
-        categoria: 'ia',
-        importancia: 'Alta',
-        titulo: 'Últimas Novedades de Inteligencia Artificial',
-        subtitulo: 'Análisis detallado',
-        hecho_principal: 'Actualización importante sobre IA',
-        desarrollo: '',
-        actores: 'General',
-        contexto: '',
-        datos_verificables: '',
-        estado_actual: '',
-        declaraciones: '',
-        consecuencias: '',
-        fecha_actualizacion: new Date().toISOString()
-      };
-    }
+    const activeNoticia = noticia || fallbackNoticia;
 
-    console.log(`[SocialImageProxy] Generating image slide with Poppins font for noticia: "${noticia.titulo}"`);
     const todayStr = new Date().toISOString().split('T')[0];
-    const bgBuffer = await getBgImageForNews(noticia);
-    const slideBuffer = await createNewsSlide(noticia, bgBuffer);
+    const bgBuffer = await getBgImageForNews(activeNoticia);
+    const slideBuffer = await createNewsSlide(activeNoticia, bgBuffer);
 
     // Save asynchronously to Supabase Storage in background without blocking response
-    saveSlideImage(noticia, todayStr, slideBuffer).then(async (cdnUrl) => {
-      if (cdnUrl && noticia) {
-        await registerSlideInDatabase(noticia, cdnUrl);
+    saveSlideImage(activeNoticia, todayStr, slideBuffer).then(async (cdnUrl) => {
+      if (cdnUrl && activeNoticia) {
+        await registerSlideInDatabase(activeNoticia, cdnUrl);
       }
     }).catch(err => console.error('[SocialImageProxy] Async upload error:', err));
 
@@ -151,6 +151,19 @@ export async function GET(
 
   } catch (err: any) {
     console.error(`[SocialImageProxy] Exception in image proxy:`, err);
-    return new Response('Internal Server Error', { status: 500 });
+    // NEVER RETURN 500 ERROR TO <img> TAG. Generate emergency slide buffer cleanly!
+    try {
+      const emergencyBg = Buffer.from('<svg width="1024" height="1792" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1792" fill="#0f172a"/></svg>');
+      const emergencyBuffer = await createNewsSlide(fallbackNoticia, emergencyBg);
+      return new Response(emergencyBuffer as unknown as BodyInit, {
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400'
+        }
+      });
+    } catch (criticalErr) {
+      return new Response('Error', { status: 500 });
+    }
   }
 }
