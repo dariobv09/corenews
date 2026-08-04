@@ -230,22 +230,22 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
     // Sync current state to GitHub
     await syncToGitHub((msg) => addAgentLog('Sistema', msg, 'info'));
 
-    // --- PIPELINE DE PUBLICACIÓN AUTOMÁTICA EN TIKTOK ---
+    // --- PIPELINE DE PUBLICACIÓN AUTOMÁTICA EN REDES SOCIALES ---
     try {
       if (process.env.VERCEL) {
-        addAgentLog('Coordinador', 'ℹ Entorno Serverless Vercel detectado: Las diapositivas para TikTok se generan bajo demanda al acceder al panel administrativo (/admin/carousels) para evitar timeouts.', 'info');
+        addAgentLog('Coordinador', 'ℹ Entorno Serverless Vercel detectado: Las imágenes para Redes Sociales se generan bajo demanda al acceder al panel (/redes-sociales) para evitar timeouts.', 'info');
       } else {
-        addAgentLog('Coordinador', '🎬 Iniciando pipeline de publicación de carruseles de TikTok (Modo Foto)...', 'info');
+        addAgentLog('Coordinador', '🎬 Iniciando pipeline de imágenes para Redes Sociales...', 'info');
         const { publishTikTokCarousels } = await import('./socialPublisher');
-        const tiktokResult = await publishTikTokCarousels((msg, type) => addAgentLog('Sistema', msg, type || 'info'));
-        if (tiktokResult.success) {
-          addAgentLog('Coordinador', '✓ Pipeline de TikTok finalizado exitosamente.', 'success');
+        const socialResult = await publishTikTokCarousels((msg, type) => addAgentLog('Sistema', msg, type || 'info'));
+        if (socialResult.success) {
+          addAgentLog('Coordinador', '✓ Pipeline de Redes Sociales finalizado exitosamente.', 'success');
         } else {
-          addAgentLog('Coordinador', `⚠ Pipeline de TikTok finalizó con advertencias: ${tiktokResult.error}`, 'warning');
+          addAgentLog('Coordinador', `⚠ Pipeline de Redes Sociales finalizó con advertencias: ${socialResult.error}`, 'warning');
         }
       }
     } catch (tkErr: any) {
-      addAgentLog('Coordinador', `❌ Error inesperado en el pipeline de TikTok: ${tkErr.message || tkErr}`, 'warning');
+      addAgentLog('Coordinador', `❌ Error inesperado en el pipeline de Redes Sociales: ${tkErr.message || tkErr}`, 'warning');
     }
 
     globalLogs.lastUpdated = new Date().toISOString();

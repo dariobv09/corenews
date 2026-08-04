@@ -304,7 +304,7 @@ async function cleanupPreviousDaySlides(log?: (m: string) => void) {
 export async function publishTikTokCarousels(
   log: (msg: string, type?: 'info' | 'warning' | 'success' | 'error') => void
 ): Promise<{ success: boolean; error?: string }> {
-  log('[SocialPublisher] Iniciando pipeline de imágenes individuales por noticia para TikTok...', 'info');
+  log('[SocialPublisher] Iniciando pipeline de imágenes de noticias para Redes Sociales (con tipografía Poppins)...', 'info');
 
   // Trigger cleanup of previous day slides
   await cleanupPreviousDaySlides((m) => log(m, 'info'));

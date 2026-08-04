@@ -41,50 +41,56 @@ function escapeXml(unsafe: string): string {
 
 /**
  * Generates the SVG overlay containing typography styling, gradients, and texts
- * matching the exact corporate reference image.
+ * matching the corporate reference design using Poppins font typography.
  */
 function createSvgOverlay(
   title: string,
   width: number,
   height: number
 ): string {
-  const titleLines = wrapText(title, 20); // 20 characters max for elegant serif wrapping
+  const titleLines = wrapText(title, 22); // 22 characters max for clean Poppins wrapping
 
-  // Subtle gradient overlay for readability (darkens bottom 55% and top 15%)
+  // Subtle gradient overlay for readability (darkens bottom 60% and top 15%)
   const backgroundOverlay = `
     <defs>
       <linearGradient id="bottomOverlay" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(0, 0, 0, 0)" />
-        <stop offset="40%" stop-color="rgba(0, 0, 0, 0.4)" />
-        <stop offset="75%" stop-color="rgba(0, 0, 0, 0.85)" />
-        <stop offset="100%" stop-color="rgba(0, 0, 0, 0.95)" />
+        <stop offset="35%" stop-color="rgba(0, 0, 0, 0.45)" />
+        <stop offset="70%" stop-color="rgba(0, 0, 0, 0.88)" />
+        <stop offset="100%" stop-color="rgba(0, 0, 0, 0.98)" />
       </linearGradient>
       <linearGradient id="topOverlay" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="rgba(0, 0, 0, 0.7)" />
+        <stop offset="0%" stop-color="rgba(0, 0, 0, 0.75)" />
         <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
       </linearGradient>
     </defs>
-    <rect x="0" y="0" width="${width}" height="200" fill="url(#topOverlay)" />
-    <rect x="0" y="${height * 0.45}" width="${width}" height="${height * 0.55}" fill="url(#bottomOverlay)" />
+    <rect x="0" y="0" width="${width}" height="220" fill="url(#topOverlay)" />
+    <rect x="0" y="${height * 0.40}" width="${width}" height="${height * 0.60}" fill="url(#bottomOverlay)" />
   `;
 
-  // Draw header brand info matching reference image exactly
+  // Draw header brand info with Poppins font
   const brandSvg = `
-    <text x="160" y="94" font-family="'Georgia', 'Times New Roman', serif" font-weight="700" font-size="28" fill="#ffffff" letter-spacing="-0.01em">the core news</text>
-    <text x="160" y="122" font-family="'Inter', 'Helvetica', 'Arial', sans-serif" font-weight="500" font-size="14" fill="#a1a1aa" letter-spacing="0.08em">ANÁLISIS VERIFICADO</text>
+    <text x="160" y="94" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="800" font-size="28" fill="#ffffff" letter-spacing="-0.02em">the core news</text>
+    <text x="160" y="122" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="600" font-size="13" fill="#a1a1aa" letter-spacing="0.1em">REDES SOCIALES • VERIFICADO</text>
   `;
 
-  // Position title inside the lower half with serif font matching reference image
-  const lineSpacing = 66;
+  // Position title inside the lower half with Poppins font matching user requirement
+  const lineSpacing = 68;
   const totalTextHeight = titleLines.length * lineSpacing;
-  const textStartY = height - 120 - totalTextHeight;
+  const textStartY = height - 130 - totalTextHeight;
 
   const titleSvg = titleLines.map((line, idx) => 
-    `<text x="80" y="${textStartY + idx * lineSpacing}" font-family="'Georgia', 'Times New Roman', serif" font-weight="700" font-size="56" fill="#ffffff" letter-spacing="-0.01em">${escapeXml(line)}</text>`
+    `<text x="70" y="${textStartY + idx * lineSpacing}" font-family="'Poppins', 'Inter', system-ui, sans-serif" font-weight="800" font-size="54" fill="#ffffff" letter-spacing="-0.02em">${escapeXml(line)}</text>`
   ).join('');
 
   return `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&amp;display=swap');
+        text {
+          font-family: 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+        }
+      </style>
       ${backgroundOverlay}
       ${brandSvg}
       ${titleSvg}
@@ -99,9 +105,9 @@ async function createCorporateLogo(): Promise<Buffer> {
   const svgLogo = `
     <svg width="84" height="84" viewBox="0 0 84 84" xmlns="http://www.w3.org/2000/svg">
       <circle cx="42" cy="42" r="42" fill="#000000" stroke="#ffffff" stroke-width="3" />
-      <text x="42" y="32" font-family="'Inter', sans-serif" font-weight="900" font-size="13" fill="#ffffff" text-anchor="middle" letter-spacing="0.05em">THE</text>
-      <text x="42" y="47" font-family="'Inter', sans-serif" font-weight="900" font-size="13" fill="#ffffff" text-anchor="middle" letter-spacing="0.05em">CORE</text>
-      <text x="42" y="62" font-family="'Inter', sans-serif" font-weight="900" font-size="13" fill="#ffffff" text-anchor="middle" letter-spacing="0.05em">NEWS</text>
+      <text x="42" y="32" font-family="'Poppins', 'Inter', sans-serif" font-weight="900" font-size="12" fill="#ffffff" text-anchor="middle" letter-spacing="0.06em">THE</text>
+      <text x="42" y="47" font-family="'Poppins', 'Inter', sans-serif" font-weight="900" font-size="12" fill="#ffffff" text-anchor="middle" letter-spacing="0.06em">CORE</text>
+      <text x="42" y="62" font-family="'Poppins', 'Inter', sans-serif" font-weight="900" font-size="12" fill="#ffffff" text-anchor="middle" letter-spacing="0.06em">NEWS</text>
     </svg>
   `;
   return Buffer.from(svgLogo);
