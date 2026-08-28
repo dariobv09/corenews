@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     apple: "/apple-icon.jpg",
   },
   verification: {
-    google: '9wObFd7DaF6Qkuhtr484teqy8-xrOShMLXD-ks',
+    google: '9wObFd7DaF6Qkuhtr484teqy8-xrOShMLXD-ksrmWUo',
     other: {
       'tiktok-developers-site-verification': ['uKl96SohVZZSudi1ctuTSdjKO9Vw5Df5'],
     },
