@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import LegalPolicies from "@/components/LegalPolicies";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
-// Force Vercel rebuild with latest TikTok signature
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     apple: "/apple-icon.jpg",
   },
   verification: {
+    google: '9wObFd7DaF6Qkuhtr484teqy8-xrOShMLXD-ks',
     other: {
       'tiktok-developers-site-verification': ['uKl96SohVZZSudi1ctuTSdjKO9Vw5Df5'],
     },
@@ -58,6 +59,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <Footer />
           <LegalPolicies />
           <AnalyticsTracker />
         </ThemeProvider>
