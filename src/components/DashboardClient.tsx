@@ -41,58 +41,15 @@ const SECTION_LABELS: Record<string, { title: string; accent: 'blue' | 'violet' 
 };
 
 function getRelativeCycleLabel(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  
-  // Get today's 8:00 AM local
-  const today8 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 0, 0);
-  
-  // Determine the start of the current cycle
-  let currentCycleStart: Date;
-  if (now >= today8) {
-    currentCycleStart = today8;
-  } else {
-    currentCycleStart = new Date(today8.getTime() - 24 * 60 * 60 * 1000);
-  }
-  
-  // Determine the cycle start for 'date'
-  const date8 = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 8, 0, 0, 0);
-  let dateCycleStart: Date;
-  if (date >= date8) {
-    dateCycleStart = date8;
-  } else {
-    dateCycleStart = new Date(date8.getTime() - 24 * 60 * 60 * 1000);
-  }
-  
-  // Calculate difference in days
-  const diffTime = currentCycleStart.getTime() - dateCycleStart.getTime();
-  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) {
-    return "Noticia del Día";
-  } else {
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  }
+  return "Informe del Día";
 }
 
 function getCycleBadgeStyles(dateStr: string) {
-  const label = getRelativeCycleLabel(dateStr);
-  if (label === "Noticia del Día") {
-    return {
-      background: 'rgba(59, 130, 246, 0.12)', // Soft blue
-      color: 'var(--accent-blue)',
-      border: '1px solid rgba(59, 130, 246, 0.25)'
-    };
-  } else {
-    return {
-      background: 'rgba(156, 163, 175, 0.12)', // Soft gray
-      color: 'var(--text-muted)',
-      border: '1px solid rgba(156, 163, 175, 0.25)'
-    };
-  }
+  return {
+    background: 'rgba(59, 130, 246, 0.12)', // Soft blue
+    color: 'var(--accent-blue)',
+    border: '1px solid rgba(59, 130, 246, 0.25)'
+  };
 }
 
 export default function DashboardClient({ initialNoticias, initialInformes }: DashboardClientProps) {

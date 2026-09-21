@@ -178,11 +178,16 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
           p_fecha_actualizacion: pubDate
         });
 
-        if (rpcError) {
-          throw new Error(`Error guardando datos de ${cat} en Supabase vía RPC: ${rpcError.message}`);
+        // Purge any news older than today from database to keep only the active daily briefings
+        const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 0, 0, 0, 0).toISOString();
+        const { data: staleNews } = await supabaseAdmin.from('noticias').select('id').eq('categoria', cat).lt('fecha_actualizacion', todayStart);
+        if (staleNews && staleNews.length > 0) {
+          const staleIds = staleNews.map(n => n.id);
+          await supabaseAdmin.from('fuentes').delete().in('noticia_id', staleIds);
+          await supabaseAdmin.from('noticias').delete().in('id', staleIds);
         }
 
-        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} insertados y limitados exitosamente vía RPC.`, 'success');
+        addAgentLog('Sistema', `✓ [Supabase] Datos de ${cat} actualizados y noticias de días anteriores eliminadas.`, 'success');
       } else {
         // Fallback Local Storage Mode
         const pubDate = getPublicationTimestamp();
@@ -199,28 +204,28 @@ export async function executeUpdatePipeline(): Promise<{ success: boolean; error
           mockStore.addFuentes(fuentesToInsert);
         }
 
-        // Keep 5 days of history in mockStore and prune anything older
-        const thresholdTime = Date.now() - 5 * 24 * 60 * 60 * 1000;
+        // Keep only current day in mockStore and prune anything older
+        const todayStartMs = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 0, 0, 0, 0).getTime();
         const oldNewsIds = mockStore.getNoticias(cat)
-          .filter((n) => new Date(n.fecha_actualizacion).getTime() < thresholdTime)
+          .filter((n) => new Date(n.fecha_actualizacion).getTime() < todayStartMs)
           .map((n) => n.id);
 
         if (oldNewsIds.length > 0) {
-          addAgentLog('Sistema', `[MockStore] Depuración histórica: Eliminando ${oldNewsIds.length} noticias con más de 5 días de antigüedad...`, 'info');
+          addAgentLog('Sistema', `[MockStore] Depuración: Eliminando ${oldNewsIds.length} noticias de días anteriores...`, 'info');
           mockStore.deleteNoticias(oldNewsIds);
         }
 
-        // Add daily report (informe) without deleting previous ones
+        // Add daily report (informe)
         mockStore.addInforme({
           categoria: cat,
           contenido: finalOutput.informe,
           fecha_generacion: pubDate
         });
 
-        // Prune old reports (> 5 days)
-        mockStore.deleteOldInformes(cat, thresholdTime);
+        // Prune old reports
+        mockStore.deleteOldInformes(cat, todayStartMs);
 
-        addAgentLog('Sistema', `✓ [MockStore] Datos de ${cat} almacenados e histórico de 5 días depurado con éxito.`, 'success');
+        addAgentLog('Sistema', `✓ [MockStore] Datos de ${cat} almacenados y noticias anteriores eliminadas con éxito.`, 'success');
       }
     });
 

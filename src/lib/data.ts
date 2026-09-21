@@ -3,13 +3,17 @@ import { Noticia, Informe, Categoria } from '@/types';
 import { isSupabaseConfigured, supabaseAdmin } from './supabase';
 import { mockStore } from './mockStore';
 
-// Retrieve all fact-checked news items for a category
+// Retrieve all fact-checked news items for a category (filtered to current day only)
 export async function getLatestNews(categoria?: Categoria): Promise<Noticia[]> {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).toISOString();
+
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
       let query = supabaseAdmin
         .from('noticias')
-        .select('*, fuentes(*)');
+        .select('*, fuentes(*)')
+        .gte('fecha_actualizacion', todayStart);
 
       if (categoria) {
         query = query.eq('categoria', categoria);
@@ -19,7 +23,15 @@ export async function getLatestNews(categoria?: Categoria): Promise<Noticia[]> {
       const { data, error } = await query.order('fecha_actualizacion', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as Noticia[];
+      if (data && data.length > 0) {
+        return data as Noticia[];
+      }
+      
+      // If none found for today yet, fetch the latest available batch
+      let fallbackQuery = supabaseAdmin.from('noticias').select('*, fuentes(*)');
+      if (categoria) fallbackQuery = fallbackQuery.eq('categoria', categoria);
+      const { data: fallbackData } = await fallbackQuery.order('fecha_actualizacion', { ascending: false }).limit(10);
+      return (fallbackData || []) as Noticia[];
     } catch (err) {
       console.error('Error recuperando noticias de Supabase, recurriendo a mockStore:', err);
       return mockStore.getNoticias(categoria);
