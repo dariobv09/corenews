@@ -17,9 +17,9 @@ import {
 // Categorías del sistema corenews
 const CATEGORY_NAMES: Record<string, string> = {
   ia: "Inteligencia Artificial",
-  tecnologia: "Tecnología Avanzada y Ciberseguridad",
+  tecnologia: "Tecnología e Innovación",
   economia: "Economía Global y Mercados",
-  politica: "Geopolítica y Relaciones Internacionales",
+  politica: "Geopolítica y Seguridad Internacional",
 };
 
 const SECTION_LABELS: Record<string, { title: string; accent: 'blue' | 'violet' }> = {
@@ -374,6 +374,43 @@ export default async function Page({ params, searchParams }: PageProps) {
                   </p>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* Sección de Contrastación y Triangulación Multifuente */}
+          {noticia.contrastacion_fuentes && (
+            <section style={{
+              marginTop: 40,
+              padding: '24px 28px',
+              borderRadius: 16,
+              background: 'rgba(59, 130, 246, 0.04)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderLeft: '4px solid var(--accent-blue)',
+              fontFamily: 'Poppins, system-ui, sans-serif'
+            }}>
+              <h3 style={{
+                fontSize: 13,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--accent-blue)',
+                marginBottom: 14,
+                marginTop: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                🔍 Triangulación y Contraste de Fuentes
+              </h3>
+              <div style={{
+                fontSize: 15,
+                lineHeight: 1.85,
+                color: 'var(--text-primary)'
+              }}
+              dangerouslySetInnerHTML={{
+                __html: noticia.contrastacion_fuentes.split('\n\n').map(p => `<p style="margin-bottom: 1em;">${p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`).join('')
+              }}
+              />
             </section>
           )}
 

@@ -88,6 +88,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/equipo" style={{ color: 'inherit', textDecoration: 'none' }}>
+                  Equipo Editorial
+                </Link>
+              </li>
+              <li>
                 <Link href="/politica-editorial" style={{ color: 'inherit', textDecoration: 'none' }}>
                   Política Editorial y Fact-Checking
                 </Link>
@@ -105,10 +110,24 @@ export default function Footer() {
             <h4 style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-primary)', marginBottom: '14px' }}>
               Políticas y Privacidad
             </h4>
-            <p style={{ fontSize: '12px', lineHeight: '1.6', color: 'var(--text-faint)', marginBottom: '12px' }}>
-              Cumplimos estrictamente con el RGPD, LSSI-CE y las Políticas de Programa de Google AdSense para la protección de datos y publicidad responsable.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <li>
+                <Link href="/privacidad" style={{ color: 'inherit', textDecoration: 'none' }}>
+                  Política de Privacidad
+                </Link>
+              </li>
+              <li>
+                <Link href="/cookies" style={{ color: 'inherit', textDecoration: 'none' }}>
+                  Política de Cookies
+                </Link>
+              </li>
+              <li>
+                <Link href="/aviso-legal" style={{ color: 'inherit', textDecoration: 'none' }}>
+                  Aviso Legal
+                </Link>
+              </li>
+            </ul>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', marginTop: '14px' }}>
               <Shield style={{ width: 14, height: 14, color: 'var(--accent-blue)' }} />
               Sitio Verificado y Seguro
             </div>
@@ -129,10 +148,12 @@ export default function Footer() {
           <div>
             © {new Date().getFullYear()} <strong>The Core News</strong>. Todos los derechos reservados.
           </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <Link href="/sobre-nosotros" style={{ color: 'inherit', textDecoration: 'none' }}>Sobre Nosotros</Link>
+            <Link href="/equipo" style={{ color: 'inherit', textDecoration: 'none' }}>Equipo</Link>
             <Link href="/contacto" style={{ color: 'inherit', textDecoration: 'none' }}>Contacto</Link>
-            <Link href="/politica-editorial" style={{ color: 'inherit', textDecoration: 'none' }}>Política Editorial</Link>
+            <Link href="/privacidad" style={{ color: 'inherit', textDecoration: 'none' }}>Privacidad</Link>
+            <Link href="/aviso-legal" style={{ color: 'inherit', textDecoration: 'none' }}>Aviso Legal</Link>
           </div>
         </div>
       </div>

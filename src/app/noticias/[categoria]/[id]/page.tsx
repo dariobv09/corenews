@@ -13,12 +13,15 @@ import {
   ExternalLink
 } from "lucide-react";
 import AdBanner from "@/components/AdBanner";
+import ArticleImage from "@/components/ArticleImage";
+import AuthorCard from "@/components/AuthorCard";
+import ShareButtons from "@/components/ShareButtons";
 
 const CATEGORY_NAMES: Record<string, string> = {
   ia: "Inteligencia Artificial",
-  tecnologia: "Tecnología Avanzada y Ciberseguridad",
+  tecnologia: "Tecnología e Innovación",
   economia: "Economía Global y Mercados",
-  politica: "Geopolítica y Relaciones Internacionales",
+  politica: "Geopolítica y Seguridad Internacional",
 };
 
 const SECTION_LABELS: Record<string, { title: string; accent: 'blue' | 'violet' }> = {
@@ -97,10 +100,11 @@ export default async function ArticlePage({ params }: PageProps) {
     "description": noticia.subtitulo || noticia.meta_description,
     "datePublished": noticia.fecha_actualizacion,
     "dateModified": noticia.fecha_actualizacion,
+    ...(noticia.imagen_url ? { "image": noticia.imagen_url } : {}),
     "author": {
-      "@type": "Organization",
-      "name": "The Core News",
-      "url": "https://thecorenews.info"
+      "@type": "Person",
+      "name": noticia.author_name || "Darío Balado",
+      "url": "https://thecorenews.info/equipo"
     },
     "publisher": {
       "@type": "Organization",
@@ -199,12 +203,32 @@ export default async function ArticlePage({ params }: PageProps) {
                 fontWeight: 400,
                 lineHeight: 1.6,
                 color: 'var(--text-muted)',
-                marginBottom: 24,
+                marginBottom: 20,
                 fontFamily: 'system-ui, -apple-system, sans-serif'
               }}>
                 {noticia.subtitulo}
               </p>
             )}
+
+            {/* Fila con Autor y Botones de Compartir */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 16,
+              marginBottom: 28,
+              paddingTop: 8
+            }}>
+              <AuthorCard name={noticia.author_name} />
+              <ShareButtons
+                url={`https://thecorenews.info/noticias/${categoria}/${id}`}
+                title={noticia.titulo}
+              />
+            </div>
+
+            {/* Imagen destacada del artículo */}
+            <ArticleImage src={noticia.imagen_url} alt={noticia.titulo} />
           </header>
 
           {/* Bloque de anuncios en medio del artículo editorial completo */}
@@ -353,6 +377,119 @@ export default async function ArticlePage({ params }: PageProps) {
             </section>
           )}
 
+          {/* Sección de Debate y Análisis Multi-perspectiva (1.D) */}
+          {(noticia.perspectiva_a_favor || noticia.perspectiva_en_contra || noticia.implicaciones) && (
+            <section style={{
+              marginTop: 36,
+              padding: '24px 28px',
+              borderRadius: 16,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+            }}>
+              <h3 style={{
+                fontSize: 13,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--accent-blue)',
+                marginBottom: 18,
+                marginTop: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                ⚖️ Análisis de Perspectivas y Debate
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                {noticia.perspectiva_a_favor && (
+                  <div style={{
+                    padding: '16px 20px',
+                    borderRadius: 12,
+                    background: 'rgba(34, 197, 94, 0.06)',
+                    border: '1px solid rgba(34, 197, 94, 0.2)'
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', marginBottom: 6 }}>
+                      ✓ Argumentos y Oportunidades
+                    </div>
+                    <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                      {noticia.perspectiva_a_favor}
+                    </div>
+                  </div>
+                )}
+
+                {noticia.perspectiva_en_contra && (
+                  <div style={{
+                    padding: '16px 20px',
+                    borderRadius: 12,
+                    background: 'rgba(239, 68, 68, 0.06)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)'
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>
+                      ✕ Riesgos y Críticas
+                    </div>
+                    <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                      {noticia.perspectiva_en_contra}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {noticia.implicaciones && (
+                <div style={{
+                  marginTop: 16,
+                  padding: '16px 20px',
+                  borderRadius: 12,
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border)'
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                    🌐 Implicaciones Sectoriales
+                  </div>
+                  <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                    {noticia.implicaciones}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Sección de Contrastación y Triangulación Multifuente */}
+          {noticia.contrastacion_fuentes && (
+            <section style={{
+              marginTop: 36,
+              padding: '24px 28px',
+              borderRadius: 16,
+              background: 'rgba(59, 130, 246, 0.04)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderLeft: '4px solid var(--accent-blue)'
+            }}>
+              <h3 style={{
+                fontSize: 13,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--accent-blue)',
+                marginBottom: 14,
+                marginTop: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                🔍 Triangulación y Contraste de Fuentes
+              </h3>
+              <div style={{
+                fontSize: 15,
+                lineHeight: 1.85,
+                color: 'var(--text-primary)'
+              }}
+              dangerouslySetInnerHTML={{
+                __html: noticia.contrastacion_fuentes.split('\n\n').map(p => `<p style="margin-bottom: 1em;">${p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`).join('')
+              }}
+              />
+            </section>
+          )}
+
           {/* Anuncio inferior del artículo */}
           <AdBanner slot="article_footer_bottom" />
 
@@ -412,6 +549,32 @@ export default async function ArticlePage({ params }: PageProps) {
               </div>
             </section>
           )}
+          {/* Compartir al final del artículo */}
+          <div style={{
+            marginTop: 40,
+            padding: '20px 24px',
+            borderRadius: 12,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16
+          }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                ¿Te ha parecido útil este análisis?
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                Comparte información contrastada y verificada
+              </div>
+            </div>
+            <ShareButtons
+              url={`https://thecorenews.info/noticias/${categoria}/${id}`}
+              title={noticia.titulo}
+            />
+          </div>
         </article>
       </div>
     </>

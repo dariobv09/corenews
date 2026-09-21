@@ -15,6 +15,9 @@ import {
   Zap
 } from 'lucide-react';
 import AdBanner from './AdBanner';
+import ArticleImage from './ArticleImage';
+import AuthorCard from './AuthorCard';
+import ShareButtons from './ShareButtons';
 
 interface DashboardClientProps {
   initialNoticias: Noticia[];
@@ -22,10 +25,10 @@ interface DashboardClientProps {
 }
 
 const CATEGORIAS: { key: Categoria; label: string; description: string }[] = [
-  { key: 'ia',         label: 'Inteligencia Artificial', description: 'Modelos, agentes, regulación y hardware de IA' },
-  { key: 'tecnologia', label: 'Tecnología',              description: 'Semiconductores, ciberseguridad e infraestructura' },
-  { key: 'economia',   label: 'Economía',                description: 'Mercados, bancos centrales y macroeconomía' },
-  { key: 'politica',   label: 'Política Internacional',  description: 'Geopolítica, diplomacia y conflictos globales' },
+  { key: 'ia',         label: 'Inteligencia Artificial', description: 'Modelos de razonamiento, agentes e infraestructura de frontera' },
+  { key: 'tecnologia', label: 'Tecnología e Innovación', description: 'Biomedicina, nuevos materiales, energía cuántica y semiconductores' },
+  { key: 'economia',   label: 'Economía Global',         description: 'Bancos centrales, macroestrategia y flujos de capital' },
+  { key: 'politica',   label: 'Geopolítica y Seguridad', description: 'Conflictos internacionales, tratados y diplomacia estratégica' },
 ];
 
 const SECTION_LABELS: Record<string, { title: string; accent: 'blue' | 'violet' }> = {
@@ -201,7 +204,7 @@ export default function DashboardClient({ initialNoticias, initialInformes }: Da
                   the core news
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-faint)', letterSpacing: '0.05em' }}>
-                  ANÁLISIS MULTIAGENTE
+                  NOTICIAS VERIFICADAS
                 </div>
               </div>
             </div>
@@ -421,23 +424,28 @@ function ArticleCard({ noticia, index, onClick }: { noticia: Noticia; index: num
 
             {/* Footer tarjeta */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-              {/* Fuentes */}
-              {noticia.fuentes && noticia.fuentes.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
-                    {noticia.fuentes.length} fuente{noticia.fuentes.length !== 1 ? 's' : ''} —
-                  </span>
-                  {noticia.fuentes.slice(0, 3).map((f, i) => (
-                    <span key={i} style={{
-                      fontSize: 11, padding: '2px 8px', borderRadius: 12,
-                      background: 'var(--bg-subtle)', color: 'var(--text-muted)',
-                      border: '1px solid var(--border)'
-                    }}>
-                      {f.nombre}
+              {/* Fuentes + Autor */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {noticia.fuentes && noticia.fuentes.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+                      {noticia.fuentes.length} fuente{noticia.fuentes.length !== 1 ? 's' : ''} —
                     </span>
-                  ))}
-                </div>
-              )}
+                    {noticia.fuentes.slice(0, 3).map((f, i) => (
+                      <span key={i} style={{
+                        fontSize: 11, padding: '2px 8px', borderRadius: 12,
+                        background: 'var(--bg-subtle)', color: 'var(--text-muted)',
+                        border: '1px solid var(--border)'
+                      }}>
+                        {f.nombre}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <span style={{ fontSize: 11, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Por {noticia.author_name || 'Darío Balado'}
+                </span>
+              </div>
 
               {/* CTA */}
               <span style={{
@@ -451,6 +459,29 @@ function ArticleCard({ noticia, index, onClick }: { noticia: Noticia; index: num
               </span>
             </div>
           </div>
+
+          {/* Miniatura visual de la noticia */}
+          {noticia.imagen_url && (
+            <div style={{
+              flexShrink: 0,
+              borderRadius: 10,
+              overflow: 'hidden',
+              border: '1px solid var(--border)',
+            }} className="w-24 h-18 sm:w-36 sm:h-24">
+              <img
+                src={noticia.imagen_url}
+                alt={noticia.titulo}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transition: 'transform 0.3s ease',
+                  transform: hovered ? 'scale(1.05)' : 'scale(1)'
+                }}
+                loading="lazy"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -555,12 +586,32 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
               fontStyle: 'italic',
               lineHeight: 1.6,
               color: 'var(--text-muted)',
-              marginBottom: 32,
+              marginBottom: 20,
               fontFamily: 'Poppins, system-ui, sans-serif'
             }}>
               {noticia.subtitulo}
             </p>
           )}
+
+          {/* Fila Autor + Compartir */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            marginBottom: 28,
+            paddingTop: 8
+          }}>
+            <AuthorCard name={noticia.author_name} />
+            <ShareButtons
+              url={`https://thecorenews.info/noticias/${noticia.categoria}/${noticia.id}`}
+              title={noticia.titulo}
+            />
+          </div>
+
+          {/* Imagen del artículo */}
+          <ArticleImage src={noticia.imagen_url} alt={noticia.titulo} />
         </header>
 
         {/* Separador */}
@@ -719,6 +770,42 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
           </section>
         )}
 
+        {/* ── SECCIÓN DE CONTRASTACIÓN Y TRIANGULACIÓN MULTIFUENTE ── */}
+        {noticia.contrastacion_fuentes && (
+          <section style={{
+            marginTop: 40,
+            padding: '24px 28px',
+            borderRadius: 16,
+            background: 'rgba(59, 130, 246, 0.04)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            borderLeft: '4px solid var(--accent-blue)',
+          }}>
+            <h3 style={{
+              fontSize: 13,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              color: 'var(--accent-blue)',
+              marginBottom: 14,
+              marginTop: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              🔍 Triangulación y Contraste de Fuentes
+            </h3>
+            <div style={{
+              fontSize: 15,
+              lineHeight: 1.85,
+              color: 'var(--text-primary)'
+            }}
+            dangerouslySetInnerHTML={{
+              __html: noticia.contrastacion_fuentes.split('\n\n').map(p => `<p style="margin-bottom: 1em;">${p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`).join('')
+            }}
+            />
+          </section>
+        )}
+
         {/* ── FUENTES ─────────────────────────────── */}
         {noticia.fuentes && noticia.fuentes.length > 0 && (
           <section style={{ marginTop: 64, paddingTop: 32, borderTop: '1px solid var(--border)' }}>
@@ -782,6 +869,110 @@ function ArticleReader({ noticia, onClose }: { noticia: Noticia; onClose: () => 
             </div>
           </section>
         )}
+
+        {/* ── SECCIÓN DE DEBATE Y PERSPECTIVAS (1.D) ── */}
+        {(noticia.perspectiva_a_favor || noticia.perspectiva_en_contra || noticia.implicaciones) && (
+          <section style={{
+            marginTop: 48,
+            padding: '24px 28px',
+            borderRadius: 16,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+          }}>
+            <h3 style={{
+              fontSize: 13,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              color: 'var(--accent-blue)',
+              marginBottom: 18,
+              marginTop: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              ⚖️ Análisis de Perspectivas y Debate
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {noticia.perspectiva_a_favor && (
+                <div style={{
+                  padding: '16px 20px',
+                  borderRadius: 12,
+                  background: 'rgba(34, 197, 94, 0.06)',
+                  border: '1px solid rgba(34, 197, 94, 0.2)'
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#16a34a', marginBottom: 6 }}>
+                    ✓ Argumentos y Oportunidades
+                  </div>
+                  <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                    {noticia.perspectiva_a_favor}
+                  </div>
+                </div>
+              )}
+
+              {noticia.perspectiva_en_contra && (
+                <div style={{
+                  padding: '16px 20px',
+                  borderRadius: 12,
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)'
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>
+                    ✕ Riesgos y Críticas
+                  </div>
+                  <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                    {noticia.perspectiva_en_contra}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {noticia.implicaciones && (
+              <div style={{
+                marginTop: 16,
+                padding: '16px 20px',
+                borderRadius: 12,
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border)'
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  🌐 Implicaciones Sectoriales
+                </div>
+                <div style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-muted)' }}>
+                  {noticia.implicaciones}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── COMPARTIR AL FINAL ───────────────────── */}
+        <div style={{
+          marginTop: 48,
+          padding: '20px 24px',
+          borderRadius: 12,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+              ¿Te ha parecido útil este análisis?
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+              Comparte información contrastada y verificada
+            </div>
+          </div>
+          <ShareButtons
+            url={`https://thecorenews.info/noticias/${noticia.categoria}/${noticia.id}`}
+            title={noticia.titulo}
+          />
+        </div>
       </article>
     </div>
   );

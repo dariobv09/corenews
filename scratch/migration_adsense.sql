@@ -1,0 +1,7 @@
+-- Migration: AdSense improvement fields
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS tipo_articulo TEXT DEFAULT NULL;
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS perspectiva_a_favor TEXT DEFAULT NULL;
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS perspectiva_en_contra TEXT DEFAULT NULL;
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS implicaciones TEXT DEFAULT NULL;
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS imagen_url TEXT DEFAULT NULL;
+ALTER TABLE noticias ADD COLUMN IF NOT EXISTS author_name TEXT DEFAULT 'Darío Balado';

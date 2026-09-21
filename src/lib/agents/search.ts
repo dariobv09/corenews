@@ -17,20 +17,43 @@ export interface FeedItem {
 // Curated reliable RSS feeds for each category
 const FEEDS: Record<Categoria, { name: string; url: string }[]> = {
   ia: [
-    { name: 'MIT Technology Review AI', url: 'https://www.technologyreview.com/category/artificial-intelligence/feed/' },
-    { name: 'TechCrunch AI', url: 'https://techcrunch.com/category/artificial-intelligence/feed/' }
+    { name: 'MarkTechPost AI', url: 'https://www.marktechpost.com/feed/' },
+    { name: 'SiliconANGLE AI', url: 'https://siliconangle.com/category/ai/feed/' },
+    { name: 'TechCrunch AI', url: 'https://techcrunch.com/category/artificial-intelligence/feed/' },
+    { name: 'The Verge AI', url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml' },
+    { name: 'MIT Technology Review', url: 'https://www.technologyreview.com/feed/' },
+    { name: 'Xataka IA', url: 'https://www.xataka.com/categoria/inteligencia-artificial/rss2.xml' },
+    { name: 'Ars Technica Tech Lab', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab' },
+    { name: 'The Next Web', url: 'https://thenextweb.com/feed' },
   ],
   tecnologia: [
-    { name: 'Wired', url: 'https://www.wired.com/feed/rss' },
-    { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' }
+    { name: 'MIT Technology Review', url: 'https://www.technologyreview.com/feed/' },
+    { name: 'Phys.org Science & Tech', url: 'https://phys.org/rss-feed/' },
+    { name: 'Nature News', url: 'https://www.nature.com/nature.rss' },
+    { name: 'Ars Technica Science & Tech', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab' },
+    { name: 'New Scientist', url: 'https://www.newscientist.com/feed/home/?cmpid=RSS|NSNS-Home' },
+    { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml' },
+    { name: 'TechCrunch', url: 'https://techcrunch.com/feed/' },
+    { name: 'Xataka', url: 'https://feeds.weblogssl.com/xataka2' },
   ],
   economia: [
-    { name: 'The Economist - Business & Finance', url: 'https://www.economist.com/business-and-finance/rss.xml' },
-    { name: 'Reuters Business', url: 'http://feeds.feedburner.com/reuters/businessNews' }
+    { name: 'Expansión Mercados', url: 'https://e00-expansion.uecdn.es/rss/mercados.xml' },
+    { name: 'Expansión Economía', url: 'https://e00-expansion.uecdn.es/rss/economia.xml' },
+    { name: 'El Economista Mercados', url: 'https://www.eleconomista.es/rss/rss-mercados.php' },
+    { name: 'El Economista España', url: 'https://www.eleconomista.es/rss/rss-economia.php' },
+    { name: 'Bloomberg Markets', url: 'https://feeds.bloomberg.com/markets/news.rss' },
+    { name: 'CNBC Economy', url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258' },
+    { name: 'CNBC Finance', url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664' },
+    { name: 'Financial Times Markets', url: 'https://www.ft.com/markets?format=rss' },
+    { name: 'MarketWatch Top Stories', url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories' },
   ],
   politica: [
+    { name: 'El Mundo Internacional', url: 'https://e00-elmundo.uecdn.es/elmundo/rss/internacional.xml' },
+    { name: 'Deutsche Welle News', url: 'https://rss.dw.com/xml/rss-en-all' },
+    { name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
+    { name: 'The Guardian World', url: 'https://www.theguardian.com/world/rss' },
     { name: 'Al Jazeera English', url: 'https://www.aljazeera.com/xml/rss/all.xml' },
-    { name: 'Reuters World', url: 'http://feeds.feedburner.com/Reuters/worldNews' }
+    { name: 'Foreign Policy', url: 'https://foreignpolicy.com/feed/' },
   ]
 };
 
@@ -144,28 +167,34 @@ function checkTimeframeRelevance(title: string, description: string): { hasTimel
   return { hasTimelineMatch: false, boost: 0 };
 }
 
-// Filters search results to keep the 6 most relevant items and avoid LLM token overload
-function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, limit: number = 6): FeedItem[] {
+// Filters search results to keep the most relevant items across diverse sources and avoid LLM token overload
+function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, limit: number = 8): FeedItem[] {
   const keywords: Record<Categoria, string[]> = {
     ia: [
       'inteligencia artificial', 'artificial intelligence', 'openai', 'gpt', 'gemini', 'claude', 
       'deepmind', 'llm', 'machine learning', 'nvidia', 'inference', 'sam altman', 'anthropic', 
-      'transformer', 'neural', 'reasoning', 'razonamiento'
+      'transformer', 'neural', 'reasoning', 'razonamiento', 'modelo', 'ia generativa', 'generative ai',
+      'meta ai', 'agent', 'agente', 'robot', 'ai model', 'prompt', 'algoritmo'
     ],
     tecnologia: [
-      'tecnologia', 'technology', 'chip', 'semiconductor', 'tsmc', 'intel', 'samsung', 'apple', 
-      'microsoft', 'google', 'cybersecurity', 'ciberseguridad', 'vulnerabilidad', 'software', 
-      'hardware', 'asml', 'gaa', 'ransomware', 'zero-day'
+      'tecnologia', 'tecnología', 'innovacion', 'innovación', 'biotecnologia', 'biotecnología', 'biomedicina', 
+      'farmaceutica', 'farmacéutica', 'medicamento', 'vacuna', 'terapia', 'genetica', 'genética', 'crispr', 
+      'semiconductor', 'chip', 'tsmc', 'asml', 'nvidia', 'intel', 'cuantica', 'cuántica', 'quantum', 'fusion', 
+      'fusión', 'energia', 'energía', 'bateria', 'batería', 'materiales', 'superconductor', 'aeroespacial', 
+      'espacio', 'ciberseguridad', 'vulnerabilidad', 'hardware', 'investigacion', 'investigación', 'descubrimiento'
     ],
     economia: [
-      'economia', 'economy', 'finance', 'finanzas', 'bce', 'fed', 'inflation', 'inflacion', 
-      'interest rates', 'tipos de interes', 'banco central', 'mercado', 'debt', 'deuda', 'growth', 
-      'crecimiento', 'brent', 'crudo', 'petroleo'
+      'economia', 'economía', 'economy', 'finance', 'finanzas', 'bce', 'fed', 'inflation', 'inflacion', 
+      'inflación', 'interest rates', 'tipos de interes', 'tipos de interés', 'banco central', 'mercado', 
+      'debt', 'deuda', 'growth', 'crecimiento', 'brent', 'crudo', 'petroleo', 'petróleo', 'ibex', 
+      'wall street', 's&p', 'nasdaq', 'bolsa', 'acciones', 'arancel', 'tariffs', 'recesion', 'recesión', 
+      'empleo', 'gdp', 'pib', 'dólar', 'euro', 'bonos', 'bancario'
     ],
     politica: [
-      'politica', 'politics', 'geopolitics', 'geopolitica', 'gobierno', 'government', 'treaty', 
+      'politica', 'política', 'politics', 'geopolitics', 'geopolítica', 'gobierno', 'government', 'treaty', 
       'tratado', 'security', 'seguridad', 'nato', 'otan', 'alliance', 'cumbre', 'summit', 
-      'relaciones', 'arancel', 'sabotaje', 'defensa'
+      'relaciones', 'arancel', 'sabotaje', 'defensa', 'elecciones', 'parlamento', 'congreso', 
+      'diplomacia', 'guerra', 'conflicto', 'sanciones', 'onu', 'union europea'
     ]
   };
 
@@ -222,8 +251,31 @@ function filterFeedItemsByRelevance(items: FeedItem[], categoria: Categoria, lim
   // Sort by score descending
   scoredItems.sort((a, b) => b.score - a.score);
 
-  // Return the top N items
-  return scoredItems.slice(0, limit).map((x) => x.item);
+  // Source balancing: ensure max 2 articles per sourceName so no single provider dominates
+  const sourceCount: Record<string, number> = {};
+  const balancedItems: FeedItem[] = [];
+
+  for (const scored of scoredItems) {
+    const src = scored.item.sourceName || 'Unknown';
+    const count = sourceCount[src] || 0;
+    if (count < 2) {
+      balancedItems.push(scored.item);
+      sourceCount[src] = count + 1;
+      if (balancedItems.length >= limit) break;
+    }
+  }
+
+  // If source balancing yielded fewer than limit, fill with next best scored items
+  if (balancedItems.length < limit) {
+    for (const scored of scoredItems) {
+      if (!balancedItems.includes(scored.item)) {
+        balancedItems.push(scored.item);
+        if (balancedItems.length >= limit) break;
+      }
+    }
+  }
+
+  return balancedItems;
 }
 
 async function getProcessedUrls(): Promise<Set<string>> {
@@ -316,8 +368,8 @@ export async function searchCategoryNews(categoria: Categoria, logCallback?: (ms
     return getFallbackSeedItems(categoria);
   }
 
-  // Filter by relevance to limit count to 6 and avoid token overload
-  const filteredItems = filterFeedItemsByRelevance(newItems, categoria, 6);
+  // Filter by relevance to limit count to 8 and avoid token overload
+  const filteredItems = filterFeedItemsByRelevance(newItems, categoria, 8);
   logCallback?.(`Filtrados por relevancia: Seleccionados ${filteredItems.length} artículos principales para el especialista.`);
   return filteredItems;
 }

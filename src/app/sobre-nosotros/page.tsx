@@ -46,7 +46,7 @@ export default function SobreNosotrosPage() {
         </div>
 
         <p style={{ fontSize: 18, lineHeight: 1.7, color: 'var(--text-muted)', marginBottom: 40 }}>
-          <strong>The Core News</strong> es una plataforma independiente de inteligencia automatizada y síntesis estratégica de noticias globales centrada en cuatro pilares fundamentales: <strong>Inteligencia Artificial, Tecnología Avanzada, Economía Global y Geopolítica</strong>.
+          <strong>The Core News</strong> es una plataforma independiente de inteligencia automatizada y análisis estratégico de noticias globales centrada en cuatro pilares fundamentales: <strong>Inteligencia Artificial, Tecnología e Innovación, Economía Global y Geopolítica</strong>.
         </p>
 
         <section style={{ marginBottom: 48 }}>

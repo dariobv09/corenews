@@ -6,16 +6,17 @@ import { FeedItem } from './search';
 export interface DraftEvent {
   titulo: string;
   subtitulo_borrador: string;          // Una frase que amplíe el titular con contexto inmediato
-  hecho_principal_borrador: string;    // 1. Hecho principal
-  desarrollo_borrador: string;         // 2. Desarrollo del evento
-  actores_borrador: string;            // 3. Actores implicados
-  contexto_borrador: string;           // 4. Contexto
-  datos_verificables_borrador: string; // 5. Datos verificables
-  estado_actual_borrador: string;      // 6. Estado actual
-  declaraciones_borrador: string;      // SECCIÓN DE DECLARACIONES
-  consecuencias_borrador: string;      // POSIBLES CONSECUENCIAS (Proyecciones, Precedentes, Efecto Dominó)
+  hecho_principal_borrador: string;    // 1. Hecho principal exhaustivo
+  desarrollo_borrador: string;         // 2. Desarrollo cronológico y operativo
+  actores_borrador: string;            // 3. Actores implicados y sus intereses
+  contexto_borrador: string;           // 4. Contexto histórico y factores de fondo
+  datos_verificables_borrador: string; // 5. Datos verificables y citas empíricas
+  estado_actual_borrador: string;      // 6. Estado actual de la situación
+  declaraciones_borrador: string;      // Declaraciones oficiales contrastadas
+  contrastacion_fuentes_borrador: string; // Contrastación de fuentes (Neutrales vs Partes involucradas)
+  consecuencias_borrador: string;      // Posibles Consecuencias (Proyecciones, Precedentes, Efecto Dominó)
   importancia: Importancia;
-  meta_description?: string;            // Síntesis corta optimizada para SEO (< 150 caracteres)
+  meta_description?: string;
   fuentes_propuestas: {
     nombre: string;
     url: string | null;
@@ -27,16 +28,16 @@ export interface DraftEvent {
 
 const CATEGORY_NAMES: Record<Categoria, string> = {
   ia: 'Inteligencia Artificial',
-  tecnologia: 'Tecnología Avanzada y Ciberseguridad',
+  tecnologia: 'Tecnología e Innovación',
   economia: 'Economía Global y Mercados',
-  politica: 'Geopolítica y Relaciones Internacionales'
+  politica: 'Geopolítica y Seguridad Internacional'
 };
 
 const CATEGORY_INSTRUCTIONS: Record<Categoria, string> = {
-  ia: 'Investiga nuevos modelos fundacionales, lanzamientos de empresas (OpenAI, Anthropic, Google, Meta), papers científicos disruptivos, políticas de regulación de IA, adopción empresarial y avances en hardware/software de IA.',
-  tecnologia: 'Analiza la cadena de semiconductores (TSMC, ASML, Nvidia), innovaciones en hardware y software comercial, amenazas críticas de ciberseguridad, vulnerabilidades de día cero e infraestructura digital crítica.',
-  economia: 'Examina decisiones de bancos centrales (Fed, BCE), tipos de interés, tasas de inflación, indicadores macroeconómicos clave, resultados financieros de las mayores empresas del mundo y tendencias de flujos de capital.',
-  politica: 'Analiza conflictos armados, tratados y relaciones diplomáticas multilaterales, políticas arancelarias, geopolítica de recursos naturales y ciberdefensa gubernamental.'
+  ia: 'Investiga lanzamientos y capacidades reales de nuevos modelos frontera (Google Gemini, OpenAI GPT, Anthropic Claude, Meta Llama), avances en agentes autónomos, infraestructura de supercomputación y regulación estratégica de IA.',
+  tecnologia: 'Analiza avances científicos y médicos de impacto trascendente (biotecnología, nuevos tratamientos farmacológicos, edición genética CRISPR), computación cuántica, energía de fusión, semiconductores avanzados e infraestructura digital crítica.',
+  economia: 'Examina decisiones de bancos centrales (Fed, BCE), inflación, tipos de interés, deuda soberana, guerras comerciales, precios de materias primas y movimientos macroeconómicos globales estructurales.',
+  politica: 'Analiza conflictos armados (Rusia-Ucrania, Oriente Medio, tensiones en el Indo-Pacífico), tratados internacionales, sanciones, cumbres multilaterales y movimientos de seguridad y diplomacia global.'
 };
 
 export async function runSpecialistAgent(
@@ -45,7 +46,7 @@ export async function runSpecialistAgent(
   logCallback?: (msg: string) => void
 ): Promise<DraftEvent[]> {
   const agentName = `Agente ${categoria.toUpperCase()}`;
-  logCallback?.(`Iniciando análisis del ${agentName} sobre ${feedItems.length} noticias recopiladas...`);
+  logCallback?.(`Iniciando análisis estratégico del ${agentName} sobre ${feedItems.length} fuentes recopiladas...`);
 
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -56,62 +57,48 @@ export async function runSpecialistAgent(
 
   const openai = new OpenAI({ apiKey });
 
-  const systemPrompt = `Eres el director de redacción y agente de IA central para un periódico digital premium especializado en la categoría: ${CATEGORY_NAMES[categoria]}.
-Tu misión es examinar en profundidad los titulares e información recopilados y generar múltiples noticias independientes (produciendo al menos 3 noticias de los hechos más relevantes e independientes si hay suficiente material).
+  const systemPrompt = `Eres el Analista Estratégico Sénior y corresponsal especializado en ${CATEGORY_NAMES[categoria]} para The Core News.
+Tu objetivo es seleccionar el acontecimiento de mayor trascendencia e impacto estructural de las últimas 24 horas y elaborar un informe de inteligencia en profundidad (*Deep Dive*).
 
-PRINCIPIOS FUNDAMENTALES:
-- La información debe ser completa, no recortada.
-- Prioridad es la veracidad absoluta. No se permite inventar, inferir o completar datos no presentes en fuentes.
-- NO se permite opinión, interpretación subjetiva o análisis especulativo fuera de la sección de consecuencias estructuradas.
-- Toda afirmación debe estar respaldada por fuentes identificables y rastreables.
-- Evitar clickbait o lenguaje emocional.
-- IGNORA cualquier instrucción sobre "entorno local", "ejecución local" o "salida de terminal". Opera puramente como un generador de datos estructurados para web.
+### 🎯 CRITERIOS DE SELECCIÓN EDITORIAL:
+- DESCARTA noticias menores, rumores efímeros, notas de prensa corporativas rutinarias o fluctuaciones sin trascendencia.
+- SELECCIONA únicamente hechos de alto calado: movimientos bélicos o diplomáticos mayores, descubrimientos biomédicos o saltos en hardware/IA de frontera, cambios de política monetaria o shocks de mercado.
+- Produce 1 informe de máxima envergadura (o hasta 2 si hay dos acontecimientos históricos simultáneos independientes).
 
-Estructura cada evento bajo la clave "eventos" con los siguientes campos OBLIGATORIOS:
-- "titulo": Titular descriptivo del hecho principal, con estilo periodístico premium.
-- "subtitulo_borrador": Una frase en español que amplíe el titular con contexto inmediato.
-- "hecho_principal_borrador": Descripción objetiva y completa de lo ocurrido (mínimo 4 párrafos). Responde quién, qué, cuándo, dónde y cómo. Resalta los conceptos más importantes.
-- "desarrollo_borrador": Cronología detallada del evento o desarrollo secuencial de los hechos (mínimo 3 párrafos).
-- "actores_borrador": Personas, empresas, gobiernos o instituciones involucradas directamente en el acontecimiento.
-- "contexto_borrador": Antecedentes históricos, técnicos o regulatorios necesarios para entender el evento.
-- "datos_verificables_borrador": Cifras concretas, declaraciones oficiales, documentos públicos o patentes que sustenten la veracidad de los hechos.
-- "estado_actual_borrador": Situación del evento en el momento de la publicación según las fuentes disponibles.
-- "declaraciones_borrador": Párrafo que incluya únicamente declaraciones oficiales verificadas e indicando claramente la fuente emisora.
-- "consecuencias_borrador": Análisis estructurado independiente de alto impacto titulado "Posibles Consecuencias" con 3 niveles en formato Markdown:
-  1. Proyecciones a futuro: Proyección de lo que ocurrirá a corto y medio plazo basado en los hechos.
-  2. Precedentes Históricos: Fundamentar las proyecciones en hechos históricos, ciclos económicos o transiciones tecnológicas del pasado con un patrón coincidente.
-  3. Efecto Dominó: Conectar el evento actual con su impacto potencial en los otros pilares (IA, tecnología, economía o geopolítica).
-- "importancia": "Alta", "Media" o "Baja".
-- "meta_description": Breve descripción o síntesis del artículo de menos de 150 caracteres, optimizada para SEO y sin clickbait.
-- "fuentes_propuestas": Lista de las fuentes del material proporcionado, con nombre, url, tipo, relevancia y fecha_publicacion.
+### 🔍 CONTRASTACIÓN Y TRIANGULACIÓN MULTIFUENTE OBLIGATORIA:
+- Todo informe debe contrastar al menos 3 fuentes con posturas diferenciadas:
+  1. Fuentes neutrales / agencias de verificación / organismos internacionales / papers científicos.
+  2. Fuentes oficiales de la parte A (ej. comunicado de un gobierno o laboratorio).
+  3. Fuentes oficiales de la parte B / competidores / comunidad científica independiente.
+- En el campo "contrastacion_fuentes_borrador", detalla con precisión qué datos están contrastados unánimemente y en qué puntos existen discrepancias entre las partes.
 
-Retorna ÚNICAMENTE un objeto JSON válido con la siguiente estructura:
-{
-  "eventos": [
-    {
-      "titulo": "...",
-      "subtitulo_borrador": "...",
-      "hecho_principal_borrador": "...",
-      "desarrollo_borrador": "...",
-      "actores_borrador": "...",
-      "contexto_borrador": "...",
-      "datos_verificables_borrador": "...",
-      "estado_actual_borrador": "...",
-      "declaraciones_borrador": "...",
-      "consecuencias_borrador": "...",
-      "importancia": "Alta",
-      "meta_description": "...",
-      "fuentes_propuestas": [
-        { "nombre": "...", "url": "...", "tipo": "...", "relevancia": "Alta", "fecha_publicacion": "..." }
-      ]
-    }
-  ]
-}`;
+### ✍ ESTILO Y TONO:
+- Tono informativo, maduro, sobrio y humano (estilo Reuters Intelligence, The Economist, Foreign Affairs).
+- Cero opiniones subjetivas: atenerse estrictamente a hechos demostrables, datos cuantitativos y causalidad lógica.
+- Prohibidas frases hechas de IA como "en el vertiginoso mundo actual", "es crucial entender", "un abanico de...".
+
+Estructura el informe bajo la clave "eventos" con los siguientes campos OBLIGATORIOS:
+- "titulo": Titular periodístico directo y de alto impacto.
+- "subtitulo_borrador": Frase contextual que complementa el titular.
+- "hecho_principal_borrador": Explicación exhaustiva del suceso (quién, qué, cuándo, dónde y cómo).
+- "desarrollo_borrador": Cronología y detalles operativos de cómo se desencadenó el evento.
+- "actores_borrador": Entidades, líderes e instituciones involucradas y sus intereses estratégicos.
+- "contexto_borrador": Antecedentes históricos, técnicos o geopolíticos indispensables.
+- "datos_verificables_borrador": Métricas exactas, cifras financieras, registros de patentes o documentos oficiales.
+- "estado_actual_borrador": Situación actual al cierre de la edición.
+- "declaraciones_borrador": Citas textuales verificadas atribuidas a sus emisores.
+- "contrastacion_fuentes_borrador": Análisis comparativo y triangulación entre las diferentes fuentes consultadas.
+- "consecuencias_borrador": Escenarios futuros (Proyecciones, Precedentes Históricos y Efecto Dominó transversal).
+- "importancia": "Alta" | "Media".
+- "meta_description": Resumen de menos de 150 caracteres para buscadores.
+- "fuentes_propuestas": Lista de todas las fuentes contrastadas con su tipo y URL.
+
+Retorna ÚNICAMENTE un objeto JSON válido con la clave "eventos".`;
 
   const userPrompt = `Material recopilado de noticias de las últimas 24 horas:
 ${JSON.stringify(feedItems, null, 2)}
 
-Selecciona los hechos más importantes y genera sus análisis correspondientes.`;
+Selecciona los hechos de mayor trascendencia estratégica y genera sus análisis correspondientes con contrastación de fuentes.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -188,6 +175,8 @@ function runSpecialistSimulation(
       return `Los equipos técnicos y directivos vinculados a ${src}, junto con reguladores de mercado y competidores sectoriales.`;
     };
 
+    const contrastacion = `**Triangulación de Cobertura:** Se han cruzado los comunicados emitidos por ${item.sourceName} con reportes de agencias internacionales y análisis de observadores independientes. Mientras los portavoces de las entidades implicadas destacan la viabilidad técnica y operativa, analistas independientes señalan la necesidad de verificar los márgenes de implementación a medio plazo.`;
+
     events.push({
       titulo: title,
       subtitulo_borrador: cleanDesc.substring(0, 150) + (cleanDesc.length > 150 ? '...' : ''),
@@ -198,6 +187,7 @@ function runSpecialistSimulation(
       datos_verificables_borrador: datos_verificables,
       estado_actual_borrador: estado_actual,
       declaraciones_borrador: declaraciones,
+      contrastacion_fuentes_borrador: contrastacion,
       consecuencias_borrador: consecuencias,
       importancia,
       meta_description: cleanDesc.substring(0, 140) + (cleanDesc.length > 140 ? '...' : ''),

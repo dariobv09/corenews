@@ -17,9 +17,17 @@ export interface Noticia {
   estado_actual: string;      // 6. Estado actual
   declaraciones: string;      // SECCIÓN DE DECLARACIONES
   consecuencias: string;      // POSIBLES CONSECUENCIAS (Proyecciones, Precedentes, Efecto Dominó)
+  contrastacion_fuentes?: string; // Análisis cruzado y contrastación de fuentes
   meta_description?: string;   // Síntesis corta optimizada para SEO (< 150 caracteres)
   fecha_actualizacion: string;
   fuentes?: Fuente[];
+  // AdSense improvement fields
+  tipo_articulo?: 'factual' | 'analisis' | 'debate' | 'comparativa';
+  perspectiva_a_favor?: string;
+  perspectiva_en_contra?: string;
+  implicaciones?: string;
+  imagen_url?: string;
+  author_name?: string;
 }
 
 export interface Fuente {

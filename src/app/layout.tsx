@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "The Core News | Inteligencia de Noticias Verificadas",
-  description: "Dashboard personal de inteligencia automatizada sobre Inteligencia Artificial, Tecnología, Economía y Geopolítica.",
+  description: "The Core News — Medio digital independiente de análisis y noticias verificadas sobre Inteligencia Artificial, Tecnología, Economía Global y Geopolítica.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon.jpg",

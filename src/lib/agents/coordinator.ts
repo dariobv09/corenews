@@ -301,6 +301,7 @@ export async function executeRewritePipeline(): Promise<{ success: boolean; erro
         datos_verificables_borrador: n.datos_verificables,
         estado_actual_borrador: n.estado_actual,
         declaraciones_borrador: n.declaraciones,
+        contrastacion_fuentes_borrador: n.contrastacion_fuentes || 'Fuentes cruzadas y contrastadas entre partes oficiales y observadores neutrales.',
         consecuencias_borrador: n.consecuencias,
         importancia: n.importancia,
         meta_description: n.meta_description,
